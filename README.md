@@ -1,5 +1,5 @@
 # Drawbridge
-![Drawbridge Logo](./drawbridge_logo.png)
+![Drawbridge Logo](./drawbridge_logo.jpg)
 
 A reverse proxy with configurable authentication and attestation requirements to allow [Emissary desktop client](https://github.com/dhens/Emissary) machines to access resources beyond the proxy.
 
