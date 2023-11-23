@@ -28,6 +28,6 @@ To accomplish this, the following needs to be true:
 - A Drawbridge server is set up and configured to be accessible from port 443 on an internet-facing IP address.
 - For easiest deployment of Emissary clients, an Emissary 
 - An Emissary user enters the IP or the URI (https://drawbridge.myserver.com) into their client.
--   Emissary will make an http request to fetch the Drawbridge policy
--   Emissary will gather the information required by the policy and send it back via an http request
--   Drawbridge will either authorize the device and return with an mTLS certificate, or an error, saying Emissary, in it's current confguration, is not authorized to access the Drawbridge resources.
+  - Emissary will make an http request to fetch the Drawbridge policy
+  - Emissary will gather the information required by the policy and send it back via an http request
+  - Drawbridge will either authorize the device and return with an mTLS certificate, or an error, saying Emissary, in it's current confguration, is not authorized to access the Drawbridge resources.
