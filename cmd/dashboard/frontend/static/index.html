@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drawbridge Dashboard</title>
+</head>
+
+<body>
+  <form hx-post="http://localhost:3000/api/new-service">
+    <label for="service-name">Name</label>
+    <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
+    <label for="service-name">Host</label>
+    <input type="text" id="service-host" name="service-host" placeholder="192.168.1.2 or my.domain.com">
+    <label for="service-name">Port</label>
+    <input type="text" id="service-port" name="service-port" placeholder="25565">
+    <input type="submit">
+  </form>
+</body>
+<script src="./htmx.min.js"></script>
+
+</html>

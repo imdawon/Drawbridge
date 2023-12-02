@@ -1,18 +1,32 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-
-	"github.com/a-h/templ"
+	"dhens/drawbridge/cmd/dashboard/api"
+	"dhens/drawbridge/cmd/dashboard/frontend"
+	"flag"
 )
 
 func main() {
-	component := hello("John")
+	var frontendAPIHostAndPort string
+	flag.StringVar(
+		&frontendAPIHostAndPort,
+		"fapi",
+		"localhost:3000",
+		"listening host and port for frontend api e.g localhost:3000",
+	)
+	var backendAPIHostAndPort string
+	flag.StringVar(
+		&backendAPIHostAndPort,
+		"api",
+		"localhost:3000",
+		"listening host and port for backend api e.g localhost:3001",
+	)
+	flag.Parse()
 
-	http.Handle("/", templ.Handler(component))
+	go func() {
+		frontend.SetUpFrontendAPIService(frontendAPIHostAndPort)
+	}()
 
-	fmt.Println("Listening on localhost:3000")
-	http.ListenAndServe("localhost:3000", nil)
+	api.SetUpGenericAPIService(backendAPIHostAndPort)
 
 }
