@@ -7,7 +7,7 @@ import (
 	"github.com/a-h/templ"
 )
 
-func SetUpFrontendAPIService(hostAndPort string) {
+func SetUpAPI(hostAndPort string) {
 	log.Printf("Starting frontend api service on %s", hostAndPort)
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
