@@ -1,22 +1,26 @@
 package main
 
 import (
-	"dhens/drawbridge/cmd/dashboard/api"
+	backend "dhens/drawbridge/cmd/dashboard/api"
 	"dhens/drawbridge/cmd/dashboard/frontend"
 	"flag"
 )
 
+type ArgFlags struct {
+	frontendAPIHostAndPort string
+	backendAPIHostAndPort  string
+}
+
 func main() {
-	var frontendAPIHostAndPort string
+	flags := &ArgFlags{}
 	flag.StringVar(
-		&frontendAPIHostAndPort,
+		&flags.frontendAPIHostAndPort,
 		"fapi",
 		"localhost:3000",
 		"listening host and port for frontend api e.g localhost:3000",
 	)
-	var backendAPIHostAndPort string
 	flag.StringVar(
-		&backendAPIHostAndPort,
+		&flags.backendAPIHostAndPort,
 		"api",
 		"localhost:3000",
 		"listening host and port for backend api e.g localhost:3001",
@@ -24,9 +28,8 @@ func main() {
 	flag.Parse()
 
 	go func() {
-		frontend.SetUpFrontendAPIService(frontendAPIHostAndPort)
+		frontend.SetUpAPI(flags.frontendAPIHostAndPort)
 	}()
 
-	api.SetUpGenericAPIService(backendAPIHostAndPort)
-
+	backend.SetUpAPI(flags.backendAPIHostAndPort)
 }

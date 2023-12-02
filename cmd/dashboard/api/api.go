@@ -1,4 +1,4 @@
-package api
+package backend
 
 import (
 	"log"
@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetUpGenericAPIService(hostAndPort string) {
+func SetUpAPI(hostAndPort string) {
 	log.Printf("Starting backend api service on %s", hostAndPort)
 
 	r := gin.Default()
