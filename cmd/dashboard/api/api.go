@@ -1,11 +1,20 @@
-package dashboard
+package api
 
 import (
-	"context"
-	"os"
+	"log"
+
+	"github.com/gin-gonic/gin"
 )
 
-func main() {
-	component := hello("John")
-	component.Render(context.Background(), os.Stdout)
+func SetUpGenericAPIService(hostAndPort string) {
+	log.Printf("Starting backend api service on %s", hostAndPort)
+
+	r := gin.Default()
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+
+	r.Run(hostAndPort)
 }
