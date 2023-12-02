@@ -1,7 +1,7 @@
 package main
 
 import (
-	backend "dhens/drawbridge/cmd/dashboard/api"
+	"dhens/drawbridge/cmd/dashboard/backend"
 	"dhens/drawbridge/cmd/dashboard/frontend"
 	"flag"
 )
