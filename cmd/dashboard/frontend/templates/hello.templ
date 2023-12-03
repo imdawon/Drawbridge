@@ -1,5 +1,8 @@
 package templates
 
-templ Hello(name string) {
-  <div>Hello, { name }</div>
+import "net/http"
+
+templ Hello(r *http.Request) {
+    <li>Name: { r.PostFormValue("service-name") } </li>
+    <li>Host: { r.PostFormValue("service-host") }:{ r.PostFormValue("service-port") } </li>
 }
