@@ -8,7 +8,8 @@
 </head>
 
 <body>
-  <form hx-post="http://localhost:3000/api/new-service">
+  <h1 class="text-4xl">Drawbridge Dashboard</h1>
+  <form hx-post="/new-service" hx-target="#protected-services-list">
     <label for="service-name">Name</label>
     <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
     <label for="service-name">Host</label>
@@ -17,6 +18,14 @@
     <input type="text" id="service-port" name="service-port" placeholder="25565">
     <input type="submit">
   </form>
+
+  <div id="protected-services">
+    <h2>Protected Services</h2>
+    <ul id="protected-services-list" hx-swap="innerHTML">
+      <li>Nothing here yet!</li>
+    </ul>
+  </div>
+  
 </body>
 <script src="./htmx.min.js"></script>
 
