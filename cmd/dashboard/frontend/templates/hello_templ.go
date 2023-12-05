@@ -10,9 +10,10 @@ import "context"
 import "io"
 import "bytes"
 
-import "net/http"
+import "dhens/drawbridge/cmd/dashboard/backend"
+import "strconv"
 
-func Hello(r *http.Request) templ.Component {
+func Hello(service backend.Service) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -34,7 +35,7 @@ func Hello(r *http.Request) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var3 string = r.PostFormValue("service-name")
+		var templ_7745c5c3_Var3 string = service.Name
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -48,7 +49,7 @@ func Hello(r *http.Request) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var5 string = r.PostFormValue("service-host")
+		var templ_7745c5c3_Var5 string = service.Host
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -58,7 +59,7 @@ func Hello(r *http.Request) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var7 string = r.PostFormValue("service-port")
+		var templ_7745c5c3_Var7 string = strconv.FormatUint(uint64(service.Port), 10)
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
