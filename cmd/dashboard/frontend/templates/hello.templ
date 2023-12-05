@@ -1,8 +1,9 @@
 package templates
 
-import "net/http"
+import "dhens/drawbridge/cmd/dashboard/backend"
+import "strconv"
 
-templ Hello(r *http.Request) {
-    <li>Name: { r.PostFormValue("service-name") } </li>
-    <li>Host: { r.PostFormValue("service-host") }:{ r.PostFormValue("service-port") } </li>
+templ Hello(service backend.Service) {
+    <li>Name: { service.Name }</li>
+    <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
 }
