@@ -103,7 +103,7 @@ func (r *SQLiteRepository) UpdateService(id int64, updated backend.Service) (*ba
 
 }
 
-func (r *SQLiteRepository) DeleteService(id int64) error {
+func (r *SQLiteRepository) DeleteService(id int) error {
 	res, err := r.db.Exec("DELETE FROM services WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("error deleting service with id of %d: %s", id, err)
