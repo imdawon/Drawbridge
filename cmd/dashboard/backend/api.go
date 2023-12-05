@@ -6,7 +6,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetUpAPI(hostAndPort string) {
+type Service struct {
+	Id          int64
+	Name        string `schema:"service-name"`
+	Description string `schema:"service-description"`
+	Host        string `schema:"service-host"`
+	Port        uint16 `schema:"service-port"`
+}
+
+func SetUp(hostAndPort string) {
 	log.Printf("Starting backend api service on %s", hostAndPort)
 
 	r := gin.Default()
@@ -18,3 +26,5 @@ func SetUpAPI(hostAndPort string) {
 
 	r.Run(hostAndPort)
 }
+
+// func Create
