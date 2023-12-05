@@ -6,7 +6,10 @@ import (
 	"dhens/drawbridge/cmd/dashboard/frontend/templates"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 )
 
@@ -20,10 +23,10 @@ type Controller struct {
 
 func (f *Controller) SetUp(hostAndPort string) error {
 	log.Printf("Starting frontend api service on %s", hostAndPort)
-	// FOr testing, so we can access the html files we create
-	http.Handle("/", http.FileServer(http.Dir("./cmd/dashboard")))
 
-	http.HandleFunc("/new-service", func(w http.ResponseWriter, r *http.Request) {
+	r := mux.NewRouter()
+
+	r.HandleFunc("/new-service", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		newService := &backend.Service{}
 		decoder.Decode(newService, r.Form)
@@ -35,7 +38,25 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		templates.Services(services).Render(r.Context(), w)
 	})
 
-	http.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/service/{id}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		if r.Method != "DELETE" {
+			log.Fatalf("%s not permitted", r.Method)
+		}
+		idString := vars["id"]
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			log.Fatal("Error converting id string to int")
+		}
+		err = f.Sql.DeleteService(id)
+		if err != nil {
+			log.Fatalf("Could not get all services: %s", err)
+		}
+		services, err := f.Sql.GetAllServices()
+		templates.Services(services).Render(r.Context(), w)
+	})
+
+	r.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
 		services, err := f.Sql.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
@@ -43,6 +64,17 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		templates.Services(services).Render(r.Context(), w)
 	})
 
-	log.Fatal(http.ListenAndServe(hostAndPort, nil))
+	// FOr testing, so we can access the html files we create
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./cmd/dashboard/frontend/static")))
+
+	srv := &http.Server{
+		Handler: r,
+		Addr:    hostAndPort,
+		// Good practice: enforce timeouts for servers you create!
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
+
+	log.Fatal(srv.ListenAndServe())
 	return nil
 }
