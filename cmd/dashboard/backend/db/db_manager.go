@@ -26,7 +26,7 @@ func (r *SQLiteRepository) Migrate() error {
 		name TEXT NOT NULL UNIQUE,
 		description TEXT,
 		host TEXT NOT NULL,
-		port INTEGER NOT NULL,
+		port INTEGER NOT NULL
 	);
 	`
 
