@@ -5,6 +5,7 @@ import (
 	"dhens/drawbridge/cmd/dashboard/backend/db"
 	"dhens/drawbridge/cmd/dashboard/frontend"
 	"flag"
+	"log"
 )
 
 type ArgFlags struct {
@@ -37,6 +38,10 @@ func main() {
 
 	dbHandle := db.OpenDatabaseFile(flags.sqliteFilename)
 	sqliteRepository := db.NewSQLiteRepository(dbHandle)
+	err := sqliteRepository.Migrate()
+	if err != nil {
+		log.Fatalf("Error running db migration: %s", err)
+	}
 	frontendController := frontend.Controller{
 		Sql: sqliteRepository,
 	}

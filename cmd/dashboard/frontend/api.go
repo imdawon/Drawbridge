@@ -28,7 +28,19 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		newService := &backend.Service{}
 		decoder.Decode(newService, r.Form)
 		f.Sql.CreateNewService(*newService)
-		templates.Hello(*newService).Render(r.Context(), w)
+		services, err := f.Sql.GetAllServices()
+		if err != nil {
+			log.Fatalf("Could not get all services: %s", err)
+		}
+		templates.Services(services).Render(r.Context(), w)
+	})
+
+	http.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
+		services, err := f.Sql.GetAllServices()
+		if err != nil {
+			log.Fatalf("Could not get all services: %s", err)
+		}
+		templates.Services(services).Render(r.Context(), w)
 	})
 
 	log.Fatal(http.ListenAndServe(hostAndPort, nil))

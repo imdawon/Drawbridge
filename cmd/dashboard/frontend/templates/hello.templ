@@ -3,7 +3,9 @@ package templates
 import "dhens/drawbridge/cmd/dashboard/backend"
 import "strconv"
 
-templ Hello(service backend.Service) {
-    <li>Name: { service.Name }</li>
-    <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
+templ Services(services []backend.Service) {
+    for _, service := range services {
+        <li>Name: { service.Name }</li>
+        <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
+    }
 }

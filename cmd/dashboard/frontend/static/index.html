@@ -21,7 +21,7 @@
 
   <div id="protected-services">
     <h2>Protected Services</h2>
-    <ul id="protected-services-list" hx-swap="innerHTML">
+    <ul id="protected-services-list" hx-get="/services" hx-trigger="load" hx-swap="innerHTML">
       <li>Nothing here yet!</li>
     </ul>
   </div>
