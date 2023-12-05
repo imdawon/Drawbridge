@@ -2,6 +2,7 @@ package main
 
 import (
 	"dhens/drawbridge/cmd/dashboard/backend"
+	"dhens/drawbridge/cmd/dashboard/backend/db"
 	"dhens/drawbridge/cmd/dashboard/frontend"
 	"flag"
 )
@@ -9,6 +10,7 @@ import (
 type ArgFlags struct {
 	frontendAPIHostAndPort string
 	backendAPIHostAndPort  string
+	sqliteFilename         string
 }
 
 func main() {
@@ -22,14 +24,26 @@ func main() {
 	flag.StringVar(
 		&flags.backendAPIHostAndPort,
 		"api",
-		"localhost:3000",
+		"localhost:3001",
 		"listening host and port for backend api e.g localhost:3001",
+	)
+	flag.StringVar(
+		&flags.sqliteFilename,
+		"sqlfile",
+		"dashboard.db",
+		"file name for sqlite database",
 	)
 	flag.Parse()
 
+	dbHandle := db.OpenDatabaseFile(flags.sqliteFilename)
+	sqliteRepository := db.NewSQLiteRepository(dbHandle)
+	frontendController := frontend.Controller{
+		Sql: sqliteRepository,
+	}
+
 	go func() {
-		frontend.SetUpAPI(flags.frontendAPIHostAndPort)
+		frontendController.SetUp(flags.frontendAPIHostAndPort)
 	}()
 
-	backend.SetUpAPI(flags.backendAPIHostAndPort)
+	backend.SetUp(flags.backendAPIHostAndPort)
 }
