@@ -78,7 +78,7 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 	}
 
 	// create our private and public key
-	caPrivKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	caPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -126,7 +126,7 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
 
-	certPrivKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	certPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -158,14 +158,18 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		return nil, nil, err
 	}
 
-	serverTLSConfig = &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-	}
-
 	certpool := x509.NewCertPool()
 	certpool.AppendCertsFromPEM(caPEM.Bytes())
+
+	serverTLSConfig = &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientCAs:    certpool,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+	}
+
 	clientTLSConfig = &tls.Config{
-		RootCAs: certpool,
+		RootCAs:      certpool,
+		Certificates: []tls.Certificate{serverCert},
 	}
 
 	return
