@@ -6,6 +6,7 @@ Self-hosting is a nightmare. If you're naive, you blow a hole in your home route
 If you're *"smart"*, you let some other service handle the ingress for you, most likely allowing for traffic inspection and mad metadata slurp-age by said service. 
 Even if there's none of that, it doesn't really feel like you're sticking it to the man when you have to rely on a service to keep your self-hosted applications secure.
 
+## What to do about it
 Emissary and Drawbridge solve this problem. 
 
 Drawbridge is a reverse proxy with configurable authentication and attestation requirements to allow machines running [Emissary desktop client](https://github.com/dhens/Emissary) to access protected services.
