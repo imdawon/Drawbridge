@@ -1,30 +1,66 @@
-package proxy
+package main
 
 import (
 	"bytes"
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"math/big"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"time"
 )
 
+var (
+	CACertPool      *x509.CertPool
+	ClientTLSConfig *tls.Config
+	serverTLSConfig *tls.Config
+)
+
+func myHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("New request from %s", req.RemoteAddr)
+	io.WriteString(w, "success\n")
+}
+
 func main() {
-	serverTLSConfig, clientTLSConfig, err := setupRootCA()
+	var err error
+	serverTLSConfig, ClientTLSConfig, err = setupRootCA()
 	if err != nil {
 		log.Fatalf("Error setting up root CA: %s", err)
 	}
-	fmt.Printf("Server TLS Config: %v\nClient TLS Config: %v", serverTLSConfig, clientTLSConfig)
+	// httpServer := http.Server{
+	// 	TLSConfig: serverTLSConfig,
+	// 	Addr:      "127.0.:3002",
+	// 	Handler:   http.HandlerFunc(myHandler),
+	// }
+	// defer httpServer.Close()
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "success!")
+	}))
+	server.TLS = serverTLSConfig
+	server.StartTLS()
+	log.Printf("Listening Drawbridge reverse rpoxy at %s", server.URL)
+
+	makeClientRequest(server.URL)
+
+	// log.Fatal(server.ListenAndServe())
 }
 
 func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, err error) {
+
+	// set up our CA certificate
 	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(2023),
+		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},
@@ -41,39 +77,39 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		BasicConstraintsValid: true,
 	}
 
-	// Create our servers keypair
-	caPublicKey, caPrivateKey, err := ed25519.GenerateKey(rand.Reader)
+	// create our private and public key
+	caPrivKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Create the CA
-	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPublicKey, caPrivateKey)
+	// create the CA
+	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// PEM encode
+	// pem encode
 	caPEM := new(bytes.Buffer)
 	pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
 	})
 
-	caPrivateKeyBytes, err := x509.MarshalPKCS8PrivateKey(caPrivateKey)
+	caPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(caPrivKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	caPrivateKeyPEM := new(bytes.Buffer)
-	pem.Encode(caPrivateKeyPEM, &pem.Block{
-		Type:  "OPENSSH PRIVATE KEY",
-		Bytes: caPrivateKeyBytes,
+	caPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(caPrivKeyPEM, &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: caPrivKeyPEMBytes,
 	})
 
-	// Set up server certificate
+	// set up our server certificate
 	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(2023),
+		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},
@@ -82,20 +118,20 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 		},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(10, 0, 0),
+		SubjectKeyId: []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
 
-	// Create our certificate keypair
-	certPublicKey, certPrivateKey, err := ed25519.GenerateKey(rand.Reader)
+	certPrivKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &certPublicKey, certPrivateKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	certPrivateKeyBytes, err := x509.MarshalPKCS8PrivateKey(certPrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &certPrivKey.PublicKey, caPrivKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -106,13 +142,18 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Bytes: certBytes,
 	})
 
-	certPrivateKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivateKeyPEM, &pem.Block{
-		Type:  "OPENSSH PRIVATE KEY",
-		Bytes: certPrivateKeyBytes,
+	certPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(certPrivKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	certPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(certPrivKeyPEM, &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: certPrivKeyPEMBytes,
 	})
 
-	serverCert, err := tls.X509KeyPair(certPEM.Bytes(), certPrivateKeyPEM.Bytes())
+	serverCert, err := tls.X509KeyPair(certPEM.Bytes(), certPrivKeyPEM.Bytes())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -121,11 +162,31 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Certificates: []tls.Certificate{serverCert},
 	}
 
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM(caPEM.Bytes())
+	certpool := x509.NewCertPool()
+	certpool.AppendCertsFromPEM(caPEM.Bytes())
 	clientTLSConfig = &tls.Config{
-		RootCAs: certPool,
+		RootCAs: certpool,
 	}
 
 	return
+}
+
+func makeClientRequest(url string) {
+	transport := &http.Transport{
+		TLSClientConfig: ClientTLSConfig,
+	}
+	http := http.Client{
+		Transport: transport,
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf("Cannot GET reverse proxy endpoint: %s", err)
+	}
+	respBodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading body response from reverse proxy request: %s", err)
+	}
+	body := strings.TrimSpace(string(respBodyBytes[:]))
+	fmt.Printf("client request body: %s\n", body)
 }
