@@ -5,13 +5,20 @@ import "strconv"
 import "fmt"
 
 templ Services(services []backend.Service) {
-    for _, service := range services {
-        <li>Name: { service.Name }</li>
-        <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
-        <button hx-delete={fmt.Sprintf("/service/%d",service.Id)}
-                hx-trigger="click" 
-                hx-confirm="Are you sure to want to delete this service?">
-                Delete
-        </button>
+    if len(services) == 0 {
+        <p>Nothing here yet</p>
+    } else {
+        for _, service := range services {
+            <div id={ fmt.Sprintf("service-%d",service.Id) }>
+                <li>Name: { service.Name }</li>
+                <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
+                <button hx-delete={ fmt.Sprintf("/service/%d",service.Id) }
+                        hx-trigger="click" 
+                        hx-target={ fmt.Sprintf("#service-%d",service.Id) }
+                        hx-confirm="Are you sure to want to delete this service?">
+                        Delete
+                </button>
+            </div>
+        }
     }
 }

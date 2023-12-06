@@ -50,7 +50,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		}
 		err = f.Sql.DeleteService(id)
 		if err != nil {
-			log.Fatalf("Could not get all services: %s", err)
+			log.Fatalf("Could not delete service: %s", err)
 		}
 		services, err := f.Sql.GetAllServices()
 		templates.Services(services).Render(r.Context(), w)
