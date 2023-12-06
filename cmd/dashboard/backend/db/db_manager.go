@@ -114,7 +114,7 @@ func (r *SQLiteRepository) DeleteService(id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("delete service failed")
+		return fmt.Errorf("failed to delete service")
 	}
 	return err
 }
