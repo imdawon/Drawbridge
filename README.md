@@ -1,6 +1,6 @@
 # Drawbridge
 ![Drawbridge Logo](./drawbridge_logo.jpg)
-
+### The state of self-hosting 
 Self-hosting is a nightmare. If you're naive, you blow a hole in your home router to allow access to whatever resource you want to have accessible via the internet. 
 
 If you're *"smart"*, you let some other service handle the ingress for you, most likely allowing for traffic inspection and mad metadata slurp-age by said service. 
