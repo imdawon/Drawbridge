@@ -9,16 +9,18 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"net"
 	"net/http"
-	"net/http/httptest"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 var (
@@ -29,7 +31,8 @@ var (
 
 func myHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("New request from %s", req.RemoteAddr)
-	io.WriteString(w, "success\n")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "success!")
 }
 
 func main() {
@@ -38,26 +41,24 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error setting up root CA: %s", err)
 	}
-	// httpServer := http.Server{
-	// 	TLSConfig: serverTLSConfig,
-	// 	Addr:      "127.0.:3002",
-	// 	Handler:   http.HandlerFunc(myHandler),
-	// }
-	// defer httpServer.Close()
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "success!")
-	}))
-	server.TLS = serverTLSConfig
-	server.StartTLS()
-	log.Printf("Listening Drawbridge reverse rpoxy at %s", server.URL)
 
-	makeClientRequest(server.URL)
+	r := mux.NewRouter()
+	r.HandleFunc("/", myHandler)
+	server := http.Server{
+		TLSConfig: serverTLSConfig,
+		Addr:      "localhost:4443",
+		Handler:   r,
+	}
+	log.Printf("Listening Drawbridge reverse rpoxy at %s", server.Addr)
 
-	// log.Fatal(server.ListenAndServe())
+	go func() {
+		log.Fatal(server.ListenAndServeTLS("", ""))
+	}()
+
+	makeClientRequest(fmt.Sprintf("https://%s", server.Addr))
 }
 
 func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, err error) {
-
 	// set up our CA certificate
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
@@ -96,6 +97,10 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Bytes: caBytes,
 	})
 
+	err = saveFile("ca.pem", caPEM.String(), "./cmd/reverse_proxy/ca")
+	if err != nil {
+		return nil, nil, err
+	}
 	caPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(caPrivKey)
 	if err != nil {
 		return nil, nil, err
@@ -110,6 +115,8 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 	// set up our server certificate
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
+		// Must be domain name or IP during user dash setup
+		DNSNames: []string{"localhost"},
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},
@@ -131,6 +138,7 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		return nil, nil, err
 	}
 
+	// Create the server certificate and sign it with our CA.
 	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &certPrivKey.PublicKey, caPrivKey)
 	if err != nil {
 		return nil, nil, err
@@ -141,6 +149,11 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Type:  "CERTIFICATE",
 		Bytes: certBytes,
 	})
+
+	err = saveFile("server-cert.pem", certPEM.String(), "./cmd/reverse_proxy/ca")
+	if err != nil {
+		return nil, nil, err
+	}
 
 	certPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(certPrivKey)
 	if err != nil {
@@ -153,6 +166,10 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Bytes: certPrivKeyPEMBytes,
 	})
 
+	err = saveFile("server-key.pem", certPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
+	if err != nil {
+		return nil, nil, err
+	}
 	serverCert, err := tls.X509KeyPair(certPEM.Bytes(), certPrivKeyPEM.Bytes())
 	if err != nil {
 		return nil, nil, err
@@ -176,6 +193,7 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 }
 
 func makeClientRequest(url string) {
+	// communicate with the server using an http.Client configured to trust our CA
 	transport := &http.Transport{
 		TLSClientConfig: ClientTLSConfig,
 	}
@@ -185,12 +203,35 @@ func makeClientRequest(url string) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf("Cannot GET reverse proxy endpoint: %s", err)
+		log.Fatalf("Cannot GET reverse proxy endpoint: %s", err)
 	}
-	respBodyBytes, err := ioutil.ReadAll(resp.Body)
+	respBodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("Error reading body response from reverse proxy request: %s", err)
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
 	fmt.Printf("client request body: %s\n", body)
+}
+
+// Save file if it does not already exist.
+func saveFile(fileName string, fileContents string, relativePath string) error {
+	fullFilePath := fmt.Sprintf("%s/%s", relativePath, fileName)
+	// Verify the file doesn't exist before opening.
+	_, err := os.Open(fullFilePath)
+	if !errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	f, err := os.Create(fullFilePath)
+	if err != nil {
+		return fmt.Errorf("error creating file: %s/%s", fileName, relativePath)
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(fileContents)
+	if err != nil {
+		return fmt.Errorf("error writing file contents: %s", err)
+	}
+
+	return nil
 }
