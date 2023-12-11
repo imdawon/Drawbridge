@@ -4,18 +4,19 @@ import (
 	"dhens/drawbridge/cmd/dashboard/backend"
 	"dhens/drawbridge/cmd/dashboard/backend/db"
 	"dhens/drawbridge/cmd/dashboard/frontend"
+	proxy "dhens/drawbridge/cmd/reverse_proxy"
 	"flag"
 	"log"
 )
 
-type ArgFlags struct {
+type CommandLineArgs struct {
 	frontendAPIHostAndPort string
 	backendAPIHostAndPort  string
 	sqliteFilename         string
 }
 
 func main() {
-	flags := &ArgFlags{}
+	flags := &CommandLineArgs{}
 	flag.StringVar(
 		&flags.frontendAPIHostAndPort,
 		"fapi",
@@ -46,8 +47,13 @@ func main() {
 		Sql: sqliteRepository,
 	}
 
+	// Set up templ controller used to return hypermedia to our htmx frontend.
 	go func() {
 		frontendController.SetUp(flags.frontendAPIHostAndPort)
+	}()
+
+	go func() {
+		proxy.SetUpReverseProxy()
 	}()
 
 	backend.SetUp(flags.backendAPIHostAndPort)
