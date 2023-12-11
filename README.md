@@ -39,7 +39,9 @@ To accomplish this, the following needs to be true:
 - Drawbridge and Emissary _only_ need eachother in order to provide all features described in this document.
 - No hacky shenangians or end-user technical knowledge to verify a secure session has been created e.g checking certificate hashes or an Emissary user needing to manually configure their host machine.
 
-  
+### Examples
+For protecting HTTP resources, the process is very simple. An authorized Emissary client, once it has pulled a Drawbridge configuration that includes an HTTP resource, will provision an mTLS certificate provided by the Drawbridge server. 
+
 ## Authentication Process 
 - A Drawbridge server is set up and configured to be accessible from port 443 on an internet-facing IP address.
 - For easiest deployment of Emissary clients, an Emissary 
