@@ -52,8 +52,14 @@ func main() {
 		frontendController.SetUp(flags.frontendAPIHostAndPort)
 	}()
 
+	// Set up mTLS http server
 	go func() {
 		proxy.SetUpReverseProxy()
+	}()
+
+	// Set up tcp reverse proxy that actually carries the client data to the desired protected resource.
+	go func() {
+		proxy.TestSetupTCPListener()
 	}()
 
 	backend.SetUp(flags.backendAPIHostAndPort)

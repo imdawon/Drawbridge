@@ -161,7 +161,7 @@ func (c *CA) SetupRootCA() (err error) {
 }
 
 func (c *CA) MakeClientRequest(url string) {
-	// communicate with the server using an http.Client configured to trust our CA
+	// Communicate with the server using an http.Client configured to trust our CA.
 	transport := &http.Transport{
 		TLSClientConfig: c.ClientTLSConfig,
 	}
