@@ -8,15 +8,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"dhens/drawbridge/cmd/utils"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"math/big"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -28,12 +27,6 @@ var (
 	ClientTLSConfig *tls.Config
 	serverTLSConfig *tls.Config
 )
-
-func myHandler(w http.ResponseWriter, req *http.Request) {
-	log.Printf("New request from %s", req.RemoteAddr)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "success!")
-}
 
 func main() {
 	var err error
@@ -56,6 +49,12 @@ func main() {
 	}()
 
 	makeClientRequest(fmt.Sprintf("https://%s", server.Addr))
+}
+
+func myHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("New request from %s", req.RemoteAddr)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "success!")
 }
 
 func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, err error) {
@@ -97,7 +96,7 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Bytes: caBytes,
 	})
 
-	err = saveFile("ca.pem", caPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("ca.pem", caPEM.String(), "./cmd/reverse_proxy/ca")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -150,7 +149,7 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Bytes: certBytes,
 	})
 
-	err = saveFile("server-cert.pem", certPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("server-cert.pem", certPEM.String(), "./cmd/reverse_proxy/ca")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -166,7 +165,7 @@ func setupRootCA() (serverTLSConfig *tls.Config, clientTLSConfig *tls.Config, er
 		Bytes: certPrivKeyPEMBytes,
 	})
 
-	err = saveFile("server-key.pem", certPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("server-key.pem", certPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -211,27 +210,4 @@ func makeClientRequest(url string) {
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
 	fmt.Printf("client request body: %s\n", body)
-}
-
-// Save file if it does not already exist.
-func saveFile(fileName string, fileContents string, relativePath string) error {
-	fullFilePath := fmt.Sprintf("%s/%s", relativePath, fileName)
-	// Verify the file doesn't exist before opening.
-	_, err := os.Open(fullFilePath)
-	if !errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-
-	f, err := os.Create(fullFilePath)
-	if err != nil {
-		return fmt.Errorf("error creating file: %s/%s", fileName, relativePath)
-	}
-	defer f.Close()
-
-	_, err = f.WriteString(fileContents)
-	if err != nil {
-		return fmt.Errorf("error writing file contents: %s", err)
-	}
-
-	return nil
 }
