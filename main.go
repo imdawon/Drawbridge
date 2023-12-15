@@ -5,6 +5,7 @@ import (
 	"dhens/drawbridge/cmd/dashboard/backend/db"
 	"dhens/drawbridge/cmd/dashboard/frontend"
 	proxy "dhens/drawbridge/cmd/reverse_proxy"
+	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"flag"
 	"log"
 )
@@ -47,6 +48,12 @@ func main() {
 		Sql: sqliteRepository,
 	}
 
+	ca := &certificates.CA{}
+	err = ca.SetupRootCA()
+	if err != nil {
+		log.Fatalf("Error setting up root CA: %s", err)
+	}
+
 	// Set up templ controller used to return hypermedia to our htmx frontend.
 	go func() {
 		frontendController.SetUp(flags.frontendAPIHostAndPort)
@@ -54,12 +61,12 @@ func main() {
 
 	// Set up mTLS http server
 	go func() {
-		proxy.SetUpReverseProxy()
+		proxy.SetUpReverseProxy(ca)
 	}()
 
 	// Set up tcp reverse proxy that actually carries the client data to the desired protected resource.
 	go func() {
-		proxy.TestSetupTCPListener()
+		proxy.TestSetupTCPListener(ca)
 	}()
 
 	backend.SetUp(flags.backendAPIHostAndPort)
