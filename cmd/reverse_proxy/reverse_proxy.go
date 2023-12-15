@@ -9,8 +9,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 func SetUpReverseProxy() {
@@ -20,7 +18,7 @@ func SetUpReverseProxy() {
 		log.Fatalf("Error setting up root CA: %s", err)
 	}
 
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	r.HandleFunc("/", myHandler)
 	server := http.Server{
 		TLSConfig: ca.ServerTLSConfig,
