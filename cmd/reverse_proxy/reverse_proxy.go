@@ -11,13 +11,7 @@ import (
 	"time"
 )
 
-func SetUpReverseProxy() {
-	ca := &proxy.CA{}
-	err := ca.SetupRootCA()
-	if err != nil {
-		log.Fatalf("Error setting up root CA: %s", err)
-	}
-
+func SetUpReverseProxy(ca *proxy.CA) {
 	r := http.NewServeMux()
 	r.HandleFunc("/", myHandler)
 	server := http.Server{
@@ -34,7 +28,7 @@ func SetUpReverseProxy() {
 	ca.MakeClientRequest(fmt.Sprintf("https://%s", server.Addr))
 }
 
-func TestSetupTCPListener() {
+func TestSetupTCPListener(ca *proxy.CA) {
 	log.Printf("Spinning up TCP Listener on localhost:25565")
 	l, err := net.Listen("tcp", "localhost:25565")
 	if err != nil {
@@ -66,7 +60,7 @@ func TestSetupTCPListener() {
 			go io.Copy(resourceConn, clientConn)
 			io.Copy(clientConn, resourceConn)
 			// Shut down the connection.
-			// clientConn.Close()
+			clientConn.Close()
 		}(conn)
 	}
 }
