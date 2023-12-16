@@ -26,8 +26,41 @@ type CA struct {
 	ServerTLSConfig *tls.Config
 }
 
-func (c *CA) SetupRootCA() (err error) {
-	// set up our CA certificate
+func (c *CA) SetupCertificates() (err error) {
+	caCert := utils.ReadFile("./cmd/reverse_proxy/ca/ca.crt")
+	serverCertExists := utils.FileExists("./cmd/reverse_proxy/ca/server-cert.crt")
+	serverKeyExists := utils.FileExists("./cmd/reverse_proxy/ca/server-key.key")
+
+	// Avoid generating new certificates and keys. Return TLS configs with the existing files.
+	if caCert != nil && serverCertExists && serverKeyExists {
+		log.Printf("TLS Certs & Keys already exist. Loading them from disk...")
+		certpool := x509.NewCertPool()
+		certpool.AppendCertsFromPEM(*caCert)
+
+		// Read the key pair to create certificate
+		serverCert, err := tls.LoadX509KeyPair("./cmd/reverse_proxy/ca/server-cert.crt", "./cmd/reverse_proxy/ca/server-key.key")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		c.ServerTLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{serverCert},
+			ClientCAs:    certpool,
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+		}
+
+		c.ClientTLSConfig = &tls.Config{
+			RootCAs:      certpool,
+			Certificates: []tls.Certificate{serverCert},
+		}
+
+		// Terminate function early as we have all of the cert and key data we need.
+		log.Printf("success: Loaded TLS Certs & Keys")
+		return nil
+	}
+
+	// CA Cert, Server Cert, and Server key do not exist yet. We will generate them now, and save them to disk for reuse.
+	// 1. Set up our CA certificate
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
@@ -46,26 +79,26 @@ func (c *CA) SetupRootCA() (err error) {
 		BasicConstraintsValid: true,
 	}
 
-	// create our private and public key
+	// Create our private and public key
 	caPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return err
 	}
 
-	// create the CA
+	// Create the CA
 	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
 	if err != nil {
 		return err
 	}
 
-	// pem encode
+	// PEM encode
 	caPEM := new(bytes.Buffer)
 	pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
 	})
 
-	err = utils.SaveFile("ca.pem", caPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("ca.crt", caPEM.String(), "./cmd/reverse_proxy/ca")
 	if err != nil {
 		return err
 	}
@@ -80,10 +113,10 @@ func (c *CA) SetupRootCA() (err error) {
 		Bytes: caPrivKeyPEMBytes,
 	})
 
-	// set up our server certificate
+	// 2. Set up our server certificate
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
-		// Must be domain name or IP during user dash setup
+		// TODO: Must be domain name or IP during user dash setup
 		DNSNames: []string{"localhost"},
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
@@ -118,7 +151,7 @@ func (c *CA) SetupRootCA() (err error) {
 		Bytes: certBytes,
 	})
 
-	err = utils.SaveFile("server-cert.pem", certPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("server-cert.crt", certPEM.String(), "./cmd/reverse_proxy/ca")
 	if err != nil {
 		return err
 	}
@@ -134,7 +167,7 @@ func (c *CA) SetupRootCA() (err error) {
 		Bytes: certPrivKeyPEMBytes,
 	})
 
-	err = utils.SaveFile("server-key.pem", certPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("server-key.key", certPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
 	if err != nil {
 		return err
 	}

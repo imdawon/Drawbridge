@@ -49,7 +49,7 @@ func main() {
 	}
 
 	ca := &certificates.CA{}
-	err = ca.SetupRootCA()
+	err = ca.SetupCertificates()
 	if err != nil {
 		log.Fatalf("Error setting up root CA: %s", err)
 	}
