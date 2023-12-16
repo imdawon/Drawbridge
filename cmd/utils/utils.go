@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 )
 
@@ -29,4 +30,27 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	}
 
 	return nil
+}
+
+func FileExists(pathWithFilename string) bool {
+	_, err := os.Open(pathWithFilename)
+	return !errors.Is(err, os.ErrNotExist)
+}
+
+func ReadFile(pathWithFilename string) *[]byte {
+	file, err := os.ReadFile(pathWithFilename)
+	if !errors.Is(err, os.ErrNotExist) {
+		return &file
+	}
+	return nil
+}
+
+func Sloggerf(level string, message string, args ...any) {
+	switch level {
+	case "info":
+		slog.Info(fmt.Sprintf(message, args...))
+	case "debug":
+		slog.Debug(fmt.Sprintf(message, args...))
+	}
+
 }
