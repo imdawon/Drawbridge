@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-          "name": "Launch test function",
+          "name": "Debug Drawbridge",
           "type": "go",
           "request": "launch",
-          "mode": "debug",
+          "mode": "auto",
           "program": "${workspaceFolder}/main.go",
           "args": [
             "--fapi",
@@ -19,7 +19,6 @@
           "env": {
             "CGO_ENABLED": "1",
           },
-    
         }
       ]
       
