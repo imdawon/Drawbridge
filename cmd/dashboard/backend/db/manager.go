@@ -79,27 +79,49 @@ func (r *SQLiteRepository) GetAllServices() ([]backend.Service, error) {
 	return all, nil
 }
 
-func (r *SQLiteRepository) UpdateService(id int64, updated backend.Service) (*backend.Service, error) {
+func (r *SQLiteRepository) GetServiceById(id int64) (*backend.Service, error) {
+	rows, err := r.db.Query("SELECT * FROM services WHERE id = ?", id)
+	if err != nil {
+		return nil, fmt.Errorf("error getting service id %d: %s", id, err)
+	}
+	defer rows.Close()
+
+	var service backend.Service
+	for rows.Next() {
+		if err := rows.Scan(
+			&service.Id,
+			&service.Name,
+			&service.Description,
+			&service.Host,
+			&service.Port); err != nil {
+			return nil, err
+		}
+	}
+	return &service, nil
+}
+
+func (r *SQLiteRepository) UpdateService(updated *backend.Service, id int64) error {
 	if id == 0 {
-		return nil, fmt.Errorf("invalid updated ID")
+		return fmt.Errorf("invalid updated ID")
 	}
 	res, err := r.db.Exec(
-		"INSERT INTO services(name, description, host, port)",
+		"UPDATE services SET name = ?, description = ?, host = ?, port = ? WHERE id = ?",
 		updated.Name,
 		updated.Description,
 		updated.Host,
 		updated.Port,
+		id,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error updating service with id of %d: %s", id, err)
+		return fmt.Errorf("error updating service id %d: %s", id, err)
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if rowsAffected == 0 {
-		return nil, fmt.Errorf("update failed: %s", err)
+		return fmt.Errorf("update failed: %s", err)
 	}
 
-	return &updated, nil
+	return nil
 
 }
 
