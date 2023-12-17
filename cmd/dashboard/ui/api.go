@@ -1,9 +1,9 @@
-package frontend
+package ui
 
 import (
-	"dhens/drawbridge/cmd/dashboard/backend"
-	"dhens/drawbridge/cmd/dashboard/backend/db"
-	"dhens/drawbridge/cmd/dashboard/frontend/templates"
+	"dhens/drawbridge/cmd/dashboard/ui/templates"
+	"dhens/drawbridge/cmd/drawbridge"
+	"dhens/drawbridge/cmd/drawbridge/db"
 	"log"
 	"net/http"
 	"strconv"
@@ -28,7 +28,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	r.HandleFunc("/service/create", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		newService := &backend.ProtectedService{}
+		newService := &drawbridge.ProtectedService{}
 		decoder.Decode(newService, r.Form)
 		f.Sql.CreateNewService(*newService)
 		services, err := f.Sql.GetAllServices()
@@ -125,7 +125,7 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
-	newService := &backend.ProtectedService{}
+	newService := &drawbridge.ProtectedService{}
 	decoder.Decode(newService, r.Form)
 
 	err = f.Sql.UpdateService(newService, int64(id))

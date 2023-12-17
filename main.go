@@ -1,9 +1,9 @@
 package main
 
 import (
-	"dhens/drawbridge/cmd/dashboard/backend"
-	"dhens/drawbridge/cmd/dashboard/backend/db"
-	"dhens/drawbridge/cmd/dashboard/frontend"
+	frontend "dhens/drawbridge/cmd/dashboard/ui"
+	"dhens/drawbridge/cmd/drawbridge"
+	"dhens/drawbridge/cmd/drawbridge/db"
 	proxy "dhens/drawbridge/cmd/reverse_proxy"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"flag"
@@ -69,5 +69,5 @@ func main() {
 		proxy.TestSetupTCPListener(ca)
 	}()
 
-	backend.SetUp(flags.backendAPIHostAndPort)
+	drawbridge.SetUp(flags.backendAPIHostAndPort)
 }

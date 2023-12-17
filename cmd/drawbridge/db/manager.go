@@ -2,7 +2,7 @@ package db
 
 import (
 	"database/sql"
-	"dhens/drawbridge/cmd/dashboard/backend"
+	"dhens/drawbridge/cmd/drawbridge"
 	"fmt"
 	"log"
 
@@ -34,7 +34,7 @@ func (r *SQLiteRepository) Migrate() error {
 	return err
 }
 
-func (r *SQLiteRepository) CreateNewService(service backend.ProtectedService) (*backend.ProtectedService, error) {
+func (r *SQLiteRepository) CreateNewService(service drawbridge.ProtectedService) (*drawbridge.ProtectedService, error) {
 	res, err := r.db.Exec(
 		"INSERT INTO services(name, description, host, port) values(?,?,?,?)",
 		service.Name,
@@ -56,16 +56,16 @@ func (r *SQLiteRepository) CreateNewService(service backend.ProtectedService) (*
 
 }
 
-func (r *SQLiteRepository) GetAllServices() ([]backend.ProtectedService, error) {
+func (r *SQLiteRepository) GetAllServices() ([]drawbridge.ProtectedService, error) {
 	rows, err := r.db.Query("SELECT * from services")
 	if err != nil {
 		return nil, fmt.Errorf("error getting all services: %s", err)
 	}
 	defer rows.Close()
 
-	var all []backend.ProtectedService
+	var all []drawbridge.ProtectedService
 	for rows.Next() {
-		var service backend.ProtectedService
+		var service drawbridge.ProtectedService
 		if err := rows.Scan(
 			&service.ID,
 			&service.Name,
@@ -79,14 +79,14 @@ func (r *SQLiteRepository) GetAllServices() ([]backend.ProtectedService, error) 
 	return all, nil
 }
 
-func (r *SQLiteRepository) GetServiceById(id int64) (*backend.ProtectedService, error) {
+func (r *SQLiteRepository) GetServiceById(id int64) (*drawbridge.ProtectedService, error) {
 	rows, err := r.db.Query("SELECT * FROM services WHERE id = ?", id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting service id %d: %s", id, err)
 	}
 	defer rows.Close()
 
-	var service backend.ProtectedService
+	var service drawbridge.ProtectedService
 	for rows.Next() {
 		if err := rows.Scan(
 			&service.ID,
@@ -100,7 +100,7 @@ func (r *SQLiteRepository) GetServiceById(id int64) (*backend.ProtectedService, 
 	return &service, nil
 }
 
-func (r *SQLiteRepository) UpdateService(updated *backend.ProtectedService, id int64) error {
+func (r *SQLiteRepository) UpdateService(updated *drawbridge.ProtectedService, id int64) error {
 	if id == 0 {
 		return fmt.Errorf("invalid updated ID")
 	}

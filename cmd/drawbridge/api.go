@@ -1,4 +1,4 @@
-package backend
+package drawbridge
 
 import (
 	"log"
@@ -35,15 +35,17 @@ type AuthorizationRequirement struct {
 	SerialNumber string `json:"serial-number"`
 }
 
+func validateClientAuthRequest(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"message": "pong",
+	})
+}
+
 func SetUp(hostAndPort string) {
-	log.Printf("Starting backend api service on %s", hostAndPort)
+	log.Printf("Starting drawbridge api service on %s", hostAndPort)
 
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
+	r.POST("/emissary/v1/auth", validateClientAuthRequest)
 
 	r.Run(hostAndPort)
 }
