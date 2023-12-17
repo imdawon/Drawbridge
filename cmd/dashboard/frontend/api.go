@@ -26,7 +26,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/new-service", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/service/create", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		newService := &backend.Service{}
 		decoder.Decode(newService, r.Form)
@@ -35,25 +35,47 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
-		templates.Services(services).Render(r.Context(), w)
+		templates.GetServices(services).Render(r.Context(), w)
 	})
 
 	r.HandleFunc("/service/{id}", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		if r.Method != "DELETE" {
-			log.Fatalf("%s not permitted", r.Method)
+		switch r.Method {
+		case "GET":
+			f.handleGetService(w, r)
+		default:
+			log.Fatalf("%s is not permitted for this endpoint", r.Method)
 		}
-		idString := vars["id"]
-		id, err := strconv.Atoi(idString)
-		if err != nil {
-			log.Fatal("Error converting id string to int")
+	})
+
+	r.HandleFunc("/service/{id}/delete", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case "DELETE":
+			f.handleDeleteService(w, r)
+		default:
+			log.Fatalf("%s is not permitted for this endpoint", r.Method)
 		}
-		err = f.Sql.DeleteService(id)
-		if err != nil {
-			log.Fatalf("Could not delete service: %s", err)
+	})
+
+	r.HandleFunc("/service/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case "GET":
+			vars := mux.Vars(r)
+			idString := vars["id"]
+			id, err := strconv.Atoi(idString)
+			if err != nil {
+				log.Fatal("Error converting id string to int")
+			}
+
+			service, err := f.Sql.GetServiceById(int64(id))
+			if err != nil {
+				log.Fatalf("Could not get service: %s", err)
+			}
+			templates.EditServices(service).Render(r.Context(), w)
+		case "PUT":
+			f.handleEditService(w, r)
+		default:
+			log.Fatalf("%s is not permitted for this endpoint", r.Method)
 		}
-		services, err := f.Sql.GetAllServices()
-		templates.Services(services).Render(r.Context(), w)
 	})
 
 	r.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +83,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
-		templates.Services(services).Render(r.Context(), w)
+		templates.GetServices(services).Render(r.Context(), w)
 	})
 
 	// FOr testing, so we can access the html files we create
@@ -77,4 +99,60 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	log.Fatal(srv.ListenAndServe())
 	return nil
+}
+
+func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idString := vars["id"]
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		log.Fatal("Error converting id string to int")
+	}
+
+	service, err := f.Sql.GetServiceById(int64(id))
+	if err != nil {
+		log.Fatalf("Could not get service: %s", err)
+	}
+	templates.GetService(service).Render(r.Context(), w)
+}
+
+func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idString := vars["id"]
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		log.Fatal("Error converting id string to int")
+	}
+
+	r.ParseForm()
+	newService := &backend.Service{}
+	decoder.Decode(newService, r.Form)
+
+	err = f.Sql.UpdateService(newService, int64(id))
+	if err != nil {
+		log.Fatalf("Could not update service: %s", err)
+	}
+	services, err := f.Sql.GetAllServices()
+	if err != nil {
+		log.Fatalf("Could not get all services: %s", err)
+	}
+	templates.GetServices(services).Render(r.Context(), w)
+}
+
+func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idString := vars["id"]
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		log.Fatal("Error converting id string to int")
+	}
+	err = f.Sql.DeleteService(id)
+	if err != nil {
+		log.Fatalf("Could not delete service: %s", err)
+	}
+	services, err := f.Sql.GetAllServices()
+	if err != nil {
+		log.Fatalf("Could not get all services: %s", err)
+	}
+	templates.GetServices(services).Render(r.Context(), w)
 }
