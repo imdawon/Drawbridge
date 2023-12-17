@@ -10,7 +10,6 @@ import (
 	"crypto/x509/pkix"
 	"dhens/drawbridge/cmd/utils"
 	"encoding/pem"
-	"fmt"
 	"io"
 	"log"
 	"math/big"
@@ -211,5 +210,5 @@ func (c *CA) MakeClientRequest(url string) {
 		log.Printf("Error reading body response from reverse proxy request: %s", err)
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
-	fmt.Printf("client request body: %s\n", body)
+	log.Printf("%s: client request body\n", body)
 }

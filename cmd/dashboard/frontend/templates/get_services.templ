@@ -4,7 +4,7 @@ import "dhens/drawbridge/cmd/dashboard/backend"
 import "strconv"
 import "fmt"
 
-templ Services(services []backend.Service) {
+templ GetServices(services []backend.Service) {
     if len(services) == 0 {
         <p>Nothing here yet</p>
     } else {
@@ -12,9 +12,14 @@ templ Services(services []backend.Service) {
             <div id={ fmt.Sprintf("service-%d",service.Id) }>
                 <li>Name: { service.Name }</li>
                 <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
-                <button hx-delete={ fmt.Sprintf("/service/%d",service.Id) }
+                <button hx-get={ fmt.Sprintf("/service/%d/edit",service.Id) }
                         hx-trigger="click" 
-                        hx-target={ fmt.Sprintf("#service-%d",service.Id) }
+                        hx-target={ fmt.Sprintf("#service-%d",service.Id) }>
+                        Edit
+                </button>
+                <button hx-delete={ fmt.Sprintf("/service/%d/delete",service.Id) }
+                        hx-trigger="click" 
+                        hx-target="#protected-services-list"
                         hx-confirm="Are you sure to want to delete this service?">
                         Delete
                 </button>

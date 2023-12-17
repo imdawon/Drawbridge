@@ -1,0 +1,23 @@
+package templates
+
+import "dhens/drawbridge/cmd/dashboard/backend"
+import "strconv"
+import "fmt"
+
+templ GetService(service *backend.Service) {
+    <div id={ fmt.Sprintf("service-%d",service.Id) }>
+        <li>Name: { service.Name }</li>
+        <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
+        <button hx-get={ fmt.Sprintf("/service/%d/edit",service.Id) }
+                hx-trigger="click" 
+                hx-target={ fmt.Sprintf("#service-%d",service.Id) }>
+                Edit
+        </button>
+        <button hx-delete={ fmt.Sprintf("/service/%d/delete",service.Id) }
+                hx-trigger="click" 
+                hx-target="#protected-services-list"
+                hx-confirm="Are you sure to want to delete this service?">
+                Delete
+        </button>
+    </div>
+}
