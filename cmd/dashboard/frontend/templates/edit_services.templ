@@ -1,0 +1,18 @@
+package templates
+
+import "dhens/drawbridge/cmd/dashboard/backend"
+import "strconv"
+import "fmt"
+
+templ EditServices(service *backend.Service) {
+    <form hx-put={ fmt.Sprintf("/service/%d/edit",service.Id) } hx-target="this" hx-swap="outerHTML">
+        <label for="service-name">Name</label>
+        <input type="text" id="service-name-edit" name="service-name" value={ service.Name }/>
+        <label for="service-name">Host</label>
+        <input type="text" id="service-host-edit" name="service-host" value={ service.Host }/>
+        <label for="service-name">Port</label>
+        <input type="number" id="service-port-edit" name="service-port" value={ strconv.FormatUint(uint64(service.Port), 10) }/>
+        <button hx-confirm="Are you sure to want to update this service?">Submit</button>
+        <button hx-get={ fmt.Sprintf("/service/%d",service.Id)}>Cancel</button>
+    </form>
+}
