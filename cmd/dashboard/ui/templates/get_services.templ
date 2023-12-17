@@ -1,10 +1,10 @@
 package templates
 
-import "dhens/drawbridge/cmd/dashboard/backend"
+import "dhens/drawbridge/cmd/drawbridge"
 import "strconv"
 import "fmt"
 
-templ GetServices(services []backend.Service) {
+templ GetServices(services []drawbridge.Service) {
     if len(services) == 0 {
         <p>Nothing here yet</p>
     } else {

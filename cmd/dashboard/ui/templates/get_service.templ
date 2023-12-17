@@ -1,10 +1,10 @@
 package templates
 
-import "dhens/drawbridge/cmd/dashboard/backend"
+import "dhens/drawbridge/cmd/drawbridge"
 import "strconv"
 import "fmt"
 
-templ GetService(service *backend.Service) {
+templ GetService(service *drawbridge.Service) {
     <div id={ fmt.Sprintf("service-%d",service.Id) }>
         <li>Name: { service.Name }</li>
         <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>

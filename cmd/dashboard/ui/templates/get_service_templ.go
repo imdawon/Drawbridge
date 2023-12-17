@@ -10,11 +10,11 @@ import "context"
 import "io"
 import "bytes"
 
-import "dhens/drawbridge/cmd/dashboard/backend"
+import "dhens/drawbridge/cmd/drawbridge"
 import "strconv"
 import "fmt"
 
-func GetService(service *backend.ProtectedService) templ.Component {
+func GetService(service *drawbridge.ProtectedService) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
