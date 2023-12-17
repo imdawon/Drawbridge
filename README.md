@@ -40,7 +40,13 @@ To accomplish this, the following needs to be true:
 - No hacky shenangians or end-user technical knowledge to verify a secure session has been created e.g checking certificate hashes or an Emissary user needing to manually configure their host machine.
 
 ### Examples
+
+#### HTTP
 For protecting HTTP resources, the process is very simple. An authorized Emissary client, once it has pulled a Drawbridge configuration that includes an HTTP resource, will provision an mTLS certificate provided by the Drawbridge server. 
+
+### TCP / UDP
+If the Drawbridge configuration contains a TCP (SSH, Minecraft Server, etc) or UDP (DNS, VoIP) resource, Emissary will create a local proxy server, which will then tunnel your computer traffic through the Drawbridge server. 
+On Windows, this connection is made transparent to the user by modifying the Windows Proxy settings.
 
 ## Authentication Process 
 - A Drawbridge server is set up and configured to be accessible from port 443 on an internet-facing IP address.
