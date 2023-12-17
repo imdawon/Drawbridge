@@ -34,7 +34,7 @@ func (r *SQLiteRepository) Migrate() error {
 	return err
 }
 
-func (r *SQLiteRepository) CreateNewService(service backend.Service) (*backend.Service, error) {
+func (r *SQLiteRepository) CreateNewService(service backend.ProtectedService) (*backend.ProtectedService, error) {
 	res, err := r.db.Exec(
 		"INSERT INTO services(name, description, host, port) values(?,?,?,?)",
 		service.Name,
@@ -51,23 +51,23 @@ func (r *SQLiteRepository) CreateNewService(service backend.Service) (*backend.S
 		return nil, err
 	}
 
-	service.Id = id
+	service.ID = id
 	return &service, nil
 
 }
 
-func (r *SQLiteRepository) GetAllServices() ([]backend.Service, error) {
+func (r *SQLiteRepository) GetAllServices() ([]backend.ProtectedService, error) {
 	rows, err := r.db.Query("SELECT * from services")
 	if err != nil {
 		return nil, fmt.Errorf("error getting all services: %s", err)
 	}
 	defer rows.Close()
 
-	var all []backend.Service
+	var all []backend.ProtectedService
 	for rows.Next() {
-		var service backend.Service
+		var service backend.ProtectedService
 		if err := rows.Scan(
-			&service.Id,
+			&service.ID,
 			&service.Name,
 			&service.Description,
 			&service.Host,
@@ -79,17 +79,17 @@ func (r *SQLiteRepository) GetAllServices() ([]backend.Service, error) {
 	return all, nil
 }
 
-func (r *SQLiteRepository) GetServiceById(id int64) (*backend.Service, error) {
+func (r *SQLiteRepository) GetServiceById(id int64) (*backend.ProtectedService, error) {
 	rows, err := r.db.Query("SELECT * FROM services WHERE id = ?", id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting service id %d: %s", id, err)
 	}
 	defer rows.Close()
 
-	var service backend.Service
+	var service backend.ProtectedService
 	for rows.Next() {
 		if err := rows.Scan(
-			&service.Id,
+			&service.ID,
 			&service.Name,
 			&service.Description,
 			&service.Host,
@@ -100,7 +100,7 @@ func (r *SQLiteRepository) GetServiceById(id int64) (*backend.Service, error) {
 	return &service, nil
 }
 
-func (r *SQLiteRepository) UpdateService(updated *backend.Service, id int64) error {
+func (r *SQLiteRepository) UpdateService(updated *backend.ProtectedService, id int64) error {
 	if id == 0 {
 		return fmt.Errorf("invalid updated ID")
 	}

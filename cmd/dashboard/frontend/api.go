@@ -28,7 +28,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	r.HandleFunc("/service/create", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		newService := &backend.Service{}
+		newService := &backend.ProtectedService{}
 		decoder.Decode(newService, r.Form)
 		f.Sql.CreateNewService(*newService)
 		services, err := f.Sql.GetAllServices()
@@ -125,7 +125,7 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
-	newService := &backend.Service{}
+	newService := &backend.ProtectedService{}
 	decoder.Decode(newService, r.Form)
 
 	err = f.Sql.UpdateService(newService, int64(id))
