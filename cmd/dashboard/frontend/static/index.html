@@ -8,24 +8,43 @@
 </head>
 
 <body>
-  <h1 class="text-4xl">Drawbridge Dashboard</h1>
-  <form hx-post="/service/create" hx-target="#protected-services-list">
-    <label for="service-name">Name</label>
-    <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
-    <label for="service-name">Host</label>
-    <input type="text" id="service-host" name="service-host" placeholder="192.168.1.2 or my.domain.com">
-    <label for="service-name">Port</label>
-    <input type="number" id="service-port" name="service-port" placeholder="25565">
-    <input type="submit">
-  </form>
+  <h1>Drawbridge Dashboard</h1>
+  <div id="services">
+    <h2>Protect new Service</h2>
+    <p>Add a Service that authorized Emissary clients will be able to access via Drawbridge.</p>
+    <form hx-post="/service/create" hx-target="#protected-services-list">
+      <label for="service-name">Name</label>
+      <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
+      <label for="service-name">Host</label>
+      <input type="text" id="service-host" name="service-host" placeholder="192.168.1.2 or my.domain.com">
+      <label for="service-name">Port</label>
+      <input type="number" id="service-port" name="service-port" placeholder="25565">
+      <input type="submit">
+    </form>
 
-  <div id="protected-services">
-    <h2>Protected Services</h2>
+    <h3>Protected Services</h3>
     <ul id="protected-services-list" hx-get="/services" hx-trigger="load" hx-swap="innerHTML">
       <li>Nothing here yet!</li>
     </ul>
   </div>
-  
+
+  <div id="policies">
+    <h2>Emissary Authorization Policies</h2>
+    <p>To access Services protected by Drawbridge, an Emissary client will need to match the following policy or policies.</p>
+    <p>Policies can validate details about a machine running Emissary, such as an OS version, a specific serial number, or connecting from a specific IP.</p>
+
+    <button>New IP Policy</button>
+    <button>New Serial Number Policy</button>
+    <button>New OS Version Policy</button>
+
+    <div id="current-policy">
+      <h3>Current Policy</h3>
+      <p>The active policy used to authorize Emissary clients.</p>
+      <ul id="active-config">
+        <li>Valid mTLS Certificate ✅</li>
+      </ul>
+    </div>
+  </div>
 </body>
 <script src="./htmx.min.js"></script>
 
