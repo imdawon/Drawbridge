@@ -44,7 +44,7 @@ To accomplish this, the following needs to be true:
 #### HTTP
 For protecting HTTP resources, the process is very simple. An authorized Emissary client, once it has pulled a Drawbridge configuration that includes an HTTP resource, will provision an mTLS certificate provided by the Drawbridge server. 
 
-### TCP / UDP
+#### TCP / UDP
 If the Drawbridge configuration contains a TCP (SSH, Minecraft Server, etc) or UDP (DNS, VoIP) resource, Emissary will create a local proxy server, which will then tunnel your computer traffic through the Drawbridge server. 
 On Windows, this connection is made transparent to the user by modifying the Windows Proxy settings.
 
