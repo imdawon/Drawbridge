@@ -4,30 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	proxy "dhens/drawbridge/cmd/reverse_proxy/ca"
-	"fmt"
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"time"
 )
-
-func SetUpReverseProxy(ca *proxy.CA) {
-	r := http.NewServeMux()
-	r.HandleFunc("/", myHandler)
-	server := http.Server{
-		TLSConfig: ca.ServerTLSConfig,
-		Addr:      "localhost:4443",
-		Handler:   r,
-	}
-	log.Printf("Listening Drawbridge reverse rpoxy at %s", server.Addr)
-
-	go func() {
-		log.Fatal(server.ListenAndServeTLS("", ""))
-	}()
-
-	ca.MakeClientRequest(fmt.Sprintf("https://%s", server.Addr))
-}
 
 func TestSetupTCPListener(ca *proxy.CA) {
 	log.Printf("Spinning up TCP Listener on localhost:25565")
@@ -64,10 +45,4 @@ func TestSetupTCPListener(ca *proxy.CA) {
 			clientConn.Close()
 		}(conn)
 	}
-}
-
-func myHandler(w http.ResponseWriter, req *http.Request) {
-	log.Printf("New request from %s", req.RemoteAddr)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "success!")
 }
