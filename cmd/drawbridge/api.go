@@ -54,7 +54,9 @@ func (arv *AuthorizationPolicy) clientIsAuthorized(clientAuthorization Authoriza
 	authorizationPolicyRequirements := reflect.ValueOf(arv.Requirements)
 	for i := 0; i < authorizationPolicyRequirements.NumField(); i++ {
 		fmt.Printf("value: %v", authorizationPolicyRequirements.Field(i))
+
 	}
+	return true
 }
 
 func handleClientAuthorizationRequest(c *gin.Context) {
