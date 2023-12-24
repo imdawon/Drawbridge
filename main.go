@@ -61,7 +61,7 @@ func main() {
 
 	// Set up mTLS http server
 	go func() {
-		proxy.SetUpReverseProxy(ca)
+		drawbridge.SetUpReverseProxy(ca)
 	}()
 
 	// Set up tcp reverse proxy that actually carries the client data to the desired protected resource.
