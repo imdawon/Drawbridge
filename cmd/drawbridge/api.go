@@ -42,7 +42,7 @@ func handleClientAuthorizationRequest(c *gin.Context) {
 		})
 	}
 
-	TestAuthorizationPolicy.clientIsAuthorized(*clientAuth)
+	auth.TestAuthorizationPolicy.ClientIsAuthorized(*clientAuth)
 
 	c.JSON(200, gin.H{
 		"message": "pong",

@@ -48,11 +48,10 @@ var TestAuthorizationPolicy = AuthorizationPolicy{
 // The Operator is used to evaluate if an Authorization Request field is greater than, is, is not, than an Authorization Requirement value.
 type Operator string
 
-func (arv *AuthorizationPolicy) clientIsAuthorized(clientAuthorization AuthorizationRequest) bool {
+func (arv AuthorizationPolicy) ClientIsAuthorized(clientAuthorization AuthorizationRequest) bool {
 	authorizationPolicyRequirements := reflect.ValueOf(arv.Requirements)
 	for i := 0; i < authorizationPolicyRequirements.NumField(); i++ {
 		fmt.Printf("value: %v", authorizationPolicyRequirements.Field(i))
-
 	}
 	return true
 }

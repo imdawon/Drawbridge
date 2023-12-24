@@ -87,7 +87,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	})
 
 	// FOr testing, so we can access the html files we create
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./cmd/dashboard/frontend/static")))
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./cmd/dashboard/ui/static")))
 
 	srv := &http.Server{
 		Handler: r,
