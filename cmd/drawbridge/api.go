@@ -1,14 +1,13 @@
 package drawbridge
 
 import (
+	auth "dhens/drawbridge/cmd/drawbridge/client"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
-	"reflect"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,47 +15,13 @@ import (
 // A service that Drawbridge will protect by only allowing access from authorized machines running the Emissary client.
 // In the future, a Client Policy can be assigned to a Protected Service, allowing for different requirements for different Protected Services.
 type ProtectedService struct {
-	ID             int64
-	Name           string `schema:"service-name" json:"service-name"`
-	Description    string `schema:"service-description" json:"service-description"`
-	Host           string `schema:"service-host" json:"service-host"`
-	Port           uint16 `schema:"service-port" json:"service-port"`
-	ClientPolicyID int64  `schema:"service-policy-id,omitempty" json:"service-policy-id,omitempty"`
-}
-
-// The policy that Drawbridge will use to evaluate if it will allow access to an Emissary client.
-type AuthorizationPolicy struct {
-	ID           int64
-	Name         string        `schema:"policy-name" json:"policy-name"`
-	Description  string        `schema:"policy-description" json:"policy-description"`
-	Requirements Authorization `schema:"policy-requirements" json:"policy-requirements"`
-}
-
-// An Authorization is all of the characteristics collected about a machine running the Emissary client.
-// If an Authorization passes the Requirements of an Authorization Policy, Drawbridge allow it to access protected resources.
-type Authorization struct {
-	WANIP        net.IP `json:"wan-ip"`
-	OSType       string `json:"os-type"`
-	SerialNumber string `json:"serial-number"`
-}
-
-var TestAuthorizationPolicy = AuthorizationPolicy{
-	Name:        "Allow Personal Machine",
-	Description: "",
-	Requirements: Authorization{
-		WANIP:        net.IPv4(8, 8, 8, 8),
-		OSType:       "Windows",
-		SerialNumber: "00000-00000-00000-00000",
-	},
-}
-
-func (arv *AuthorizationPolicy) clientIsAuthorized(clientAuthorization Authorization) bool {
-	authorizationPolicyRequirements := reflect.ValueOf(arv.Requirements)
-	for i := 0; i < authorizationPolicyRequirements.NumField(); i++ {
-		fmt.Printf("value: %v", authorizationPolicyRequirements.Field(i))
-
-	}
-	return true
+	ID                  int64
+	Name                string `schema:"service-name" json:"service-name"`
+	Description         string `schema:"service-description" json:"service-description"`
+	Host                string `schema:"service-host" json:"service-host"`
+	Port                uint16 `schema:"service-port" json:"service-port"`
+	ClientPolicyID      int64  `schema:"service-policy-id,omitempty" json:"service-policy-id,omitempty"`
+	AuthorizationPolicy auth.AuthorizationPolicy
 }
 
 func handleClientAuthorizationRequest(c *gin.Context) {
@@ -68,7 +33,7 @@ func handleClientAuthorizationRequest(c *gin.Context) {
 		})
 	}
 
-	clientAuth := &Authorization{}
+	clientAuth := &auth.AuthorizationRequest{}
 	err = json.Unmarshal(body, &clientAuth)
 	if err != nil {
 		log.Fatalf("error unmarshalling client auth request: %s", err)
