@@ -8,8 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
 // A service that Drawbridge will protect by only allowing access from authorized machines running the Emissary client.
@@ -24,39 +22,45 @@ type ProtectedService struct {
 	AuthorizationPolicy auth.AuthorizationPolicy
 }
 
-func handleClientAuthorizationRequest(c *gin.Context) {
-	body, err := io.ReadAll(c.Request.Body)
+func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		log.Fatalf("error reading client auth request: %s", err)
-		c.JSON(500, gin.H{
-			"success": false,
-		})
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "server error!")
 	}
 
-	clientAuth := &auth.AuthorizationRequest{}
+	clientAuth := auth.AuthorizationRequest{}
 	err = json.Unmarshal(body, &clientAuth)
 	if err != nil {
 		log.Fatalf("error unmarshalling client auth request: %s", err)
-		c.JSON(500, gin.H{
-			"success": false,
-		})
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "server error!")
 	}
 
-	auth.TestAuthorizationPolicy.ClientIsAuthorized(*clientAuth)
+	clientIsAuthorized := auth.TestAuthorizationPolicy.ClientIsAuthorized(clientAuth)
+	if clientIsAuthorized {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "success!")
 
-	c.JSON(200, gin.H{
-		"message": "pong",
-		"success": true,
-	})
+	} else {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintf(w, "unauthorized!")
+
+	}
 }
 
-func SetUp(hostAndPort string) {
-	log.Printf("Starting drawbridge api service on %s", hostAndPort)
+func SetUp(hostAndPort string, ca *certificates.CA) {
+	r := http.NewServeMux()
+	r.HandleFunc("/emissary/v1/auth", handleClientAuthorizationRequest)
+	server := http.Server{
+		TLSConfig: ca.ServerTLSConfig,
+		Addr:      hostAndPort,
+		Handler:   r,
+	}
+	log.Printf("Starting Drawbridge api service on %s", server.Addr)
 
-	r := gin.Default()
-	r.POST("/emissary/v1/auth", handleClientAuthorizationRequest)
-
-	r.Run(hostAndPort)
+	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
 func SetUpReverseProxy(ca *certificates.CA) {
@@ -74,6 +78,7 @@ func SetUpReverseProxy(ca *certificates.CA) {
 	}()
 
 	ca.MakeClientRequest(fmt.Sprintf("https://%s", server.Addr))
+	ca.MakeClientAuthorizationRequest()
 }
 
 func myHandler(w http.ResponseWriter, req *http.Request) {
