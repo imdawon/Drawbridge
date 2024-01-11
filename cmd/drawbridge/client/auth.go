@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"fmt"
 	"net"
 	"reflect"
@@ -32,6 +33,12 @@ type AuthorizationRequest struct {
 	SerialNumber string `json:"serial-number"`
 }
 
+var TestAuthorizationRequest = AuthorizationRequest{
+	WANIP:        net.IPv4(8, 8, 8, 8),
+	OSType:       "Windows",
+	SerialNumber: "00000",
+}
+
 var TestAuthorizationPolicy = AuthorizationPolicy{
 	Name:        "Allow Personal Machine",
 	Description: "",
@@ -51,7 +58,33 @@ type Operator string
 func (arv AuthorizationPolicy) ClientIsAuthorized(clientAuthorization AuthorizationRequest) bool {
 	authorizationPolicyRequirements := reflect.ValueOf(arv.Requirements)
 	for i := 0; i < authorizationPolicyRequirements.NumField(); i++ {
-		fmt.Printf("value: %v", authorizationPolicyRequirements.Field(i))
+		fmt.Printf("value: %v\n", authorizationPolicyRequirements.Field(i))
 	}
 	return true
+}
+
+func authorizationStringFieldMatchesPolicy(fieldValue, operator, policyValue string) bool {
+	switch operator {
+	case "=":
+		return fieldValue == policyValue
+	case "!=":
+		return fieldValue != policyValue
+	default:
+		return false
+	}
+}
+
+func authorizationGenericFieldMatchesPolicy[T cmp.Ordered, V string](fieldValue T, operator V, policyValue T) bool {
+	switch operator {
+	case ">":
+		return fieldValue > policyValue
+	case ">=":
+		return fieldValue >= policyValue
+	case "<":
+		return fieldValue < policyValue
+	case "<=":
+		return fieldValue <= policyValue
+	default:
+		return false
+	}
 }
