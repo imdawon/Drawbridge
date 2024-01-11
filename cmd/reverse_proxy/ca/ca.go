@@ -8,7 +8,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	auth "dhens/drawbridge/cmd/drawbridge/client"
 	"dhens/drawbridge/cmd/utils"
+	"encoding/json"
 	"encoding/pem"
 	"io"
 	"log"
@@ -193,7 +195,7 @@ func (c *CA) SetupCertificates() (err error) {
 }
 
 func (c *CA) MakeClientRequest(url string) {
-	// Communicate with the server using an http.Client configured to trust our CA.
+	// Communicate with the http server using an http.Client configured to trust our CA.
 	transport := &http.Transport{
 		TLSClientConfig: c.ClientTLSConfig,
 	}
@@ -211,4 +213,32 @@ func (c *CA) MakeClientRequest(url string) {
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
 	log.Printf("%s: client request body\n", body)
+}
+
+func (c *CA) MakeClientAuthorizationRequest() {
+	// Communicate with the http server using an http.Client configured to trust our CA.
+	transport := &http.Transport{
+		TLSClientConfig: c.ClientTLSConfig,
+	}
+	http := http.Client{
+		Transport: transport,
+	}
+
+	authorizationRequest := auth.TestAuthorizationRequest
+	out, err := json.Marshal(authorizationRequest)
+	if err != nil {
+		log.Fatalf("failed to marshal auth request: %s", err)
+	}
+
+	resp, err := http.Post("https://localhost:3001/emissary/v1/auth", "application/json", bytes.NewBuffer(out))
+	if err != nil {
+		log.Fatalf("POST to auth endpoint failed: %s", err)
+	}
+	respBodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading body response from client auth request: %s", err)
+	}
+	body := strings.TrimSpace(string(respBodyBytes[:]))
+	log.Printf("%s: client request body\n", body)
+
 }

@@ -69,5 +69,5 @@ func main() {
 		proxy.TestSetupTCPListener(ca)
 	}()
 
-	drawbridge.SetUp(flags.backendAPIHostAndPort)
+	drawbridge.SetUp(flags.backendAPIHostAndPort, ca)
 }
