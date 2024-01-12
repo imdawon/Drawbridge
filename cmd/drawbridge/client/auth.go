@@ -17,12 +17,10 @@ type AuthorizationPolicy struct {
 
 // The actual required values of each field
 type AuthorizationRequirements struct {
-	WANIP                net.IP   `json:"wan-ip"`
-	WANIPOperator        Operator `json:"wan-ip-operator"`
-	OSType               string   `json:"os-type"`
-	OSTypeOperator       Operator `json:"os-type-operator"`
-	SerialNumber         string   `json:"serial-number"`
-	SerialNumberOperator Operator `json:"serial-number-operator"`
+	WANIP        net.IP     `json:"wan-ip"`
+	OSType       string     `json:"os-type"`
+	SerialNumber string     `json:"serial-number"`
+	Operators    []Operator `json:"operators"`
 }
 
 // An AuthorizationRequest is all of the characteristics collected about a machine running the Emissary client.
@@ -41,14 +39,12 @@ var TestAuthorizationRequest = AuthorizationRequest{
 
 var TestAuthorizationPolicy = AuthorizationPolicy{
 	Name:        "Allow Personal Machine",
-	Description: "",
+	Description: "Default policy stuff.",
 	Requirements: AuthorizationRequirements{
-		WANIP:                net.IPv4(8, 8, 8, 8),
-		WANIPOperator:        "=",
-		OSType:               "Windows",
-		OSTypeOperator:       "=",
-		SerialNumber:         "00000",
-		SerialNumberOperator: "=",
+		WANIP:        net.IPv4(8, 8, 8, 8),
+		OSType:       "Windows",
+		SerialNumber: "00000",
+		Operators:    []Operator{"=", "=", "="},
 	},
 }
 
@@ -56,14 +52,22 @@ var TestAuthorizationPolicy = AuthorizationPolicy{
 type Operator string
 
 func (arv AuthorizationPolicy) ClientIsAuthorized(clientAuthorization AuthorizationRequest) bool {
-	authorizationPolicyRequirements := reflect.ValueOf(arv.Requirements)
-	for i := 0; i < authorizationPolicyRequirements.NumField(); i++ {
-		fmt.Printf("value: %v\n", authorizationPolicyRequirements.Field(i))
+	authorizationPolicyRequirementsValues := reflect.ValueOf(arv.Requirements)
+	clientAuthorizationValues := reflect.ValueOf(clientAuthorization)
+	operatorValues := arv.Requirements.Operators
+	for i := 0; i < clientAuthorizationValues.NumField(); i++ {
+		currentPolicyValue := authorizationPolicyRequirementsValues.Field(i)
+		currentClientField := clientAuthorizationValues.Field(i)
+		currentOperator := operatorValues[i]
+		if !clientAuthFieldMatchesPolicy(currentClientField.String(), string(currentOperator), currentPolicyValue.String()) {
+			return false
+		}
+		fmt.Printf("current eval: %s %s %s\n", currentClientField, currentOperator, currentPolicyValue)
 	}
 	return true
 }
 
-func authorizationStringFieldMatchesPolicy(fieldValue, operator, policyValue string) bool {
+func clientAuthFieldMatchesPolicy(fieldValue, operator, policyValue string) bool {
 	switch operator {
 	case "=":
 		return fieldValue == policyValue

@@ -212,7 +212,7 @@ func (c *CA) MakeClientRequest(url string) {
 		log.Printf("Error reading body response from reverse proxy request: %s", err)
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
-	log.Printf("%s: client request body\n", body)
+	log.Printf("%s: <- client request body\n", body)
 }
 
 func (c *CA) MakeClientAuthorizationRequest() {
@@ -239,6 +239,6 @@ func (c *CA) MakeClientAuthorizationRequest() {
 		log.Printf("Error reading body response from client auth request: %s", err)
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
-	log.Printf("%s: client request body\n", body)
+	log.Printf("%s: <- client request body\n", body)
 
 }
