@@ -32,6 +32,7 @@ func TestSetupTCPListener(ca *proxy.CA) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 
+			// connect to drawbridge on the port lsitening for the actual service
 			resourceConn, err := d.DialContext(ctx, "tcp", "localhost:25566")
 			if err != nil {
 				log.Fatalf("Failed to dial: %v", err)
