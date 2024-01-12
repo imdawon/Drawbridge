@@ -41,7 +41,7 @@ func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) 
 	clientIsAuthorized := auth.TestAuthorizationPolicy.ClientIsAuthorized(clientAuth)
 	if clientIsAuthorized {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "success!")
+		fmt.Fprintf(w, "client auth success!")
 
 	} else {
 		w.WriteHeader(http.StatusUnauthorized)
