@@ -1,4 +1,4 @@
-package tests
+package auth
 
 import (
 	auth "dhens/drawbridge/cmd/drawbridge/client"

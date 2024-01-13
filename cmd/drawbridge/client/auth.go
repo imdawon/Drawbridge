@@ -59,7 +59,7 @@ func (arv AuthorizationPolicy) ClientIsAuthorized(clientAuthorization Authorizat
 		currentPolicyValue := authorizationPolicyRequirementsValues.Field(i)
 		currentClientField := clientAuthorizationValues.Field(i)
 		currentOperator := operatorValues[i]
-		if !clientAuthFieldMatchesPolicy(currentClientField.String(), string(currentOperator), currentPolicyValue.String()) {
+		if !clientAuthorizationFieldMatchesPolicy(currentClientField.String(), string(currentOperator), currentPolicyValue.String()) {
 			return false
 		}
 		fmt.Printf("current eval: %s %s %s\n", currentClientField, currentOperator, currentPolicyValue)
@@ -67,19 +67,12 @@ func (arv AuthorizationPolicy) ClientIsAuthorized(clientAuthorization Authorizat
 	return true
 }
 
-func clientAuthFieldMatchesPolicy(fieldValue, operator, policyValue string) bool {
+func clientAuthorizationFieldMatchesPolicy[T cmp.Ordered, V string](fieldValue T, operator V, policyValue T) bool {
 	switch operator {
 	case "=":
 		return fieldValue == policyValue
 	case "!=":
 		return fieldValue != policyValue
-	default:
-		return false
-	}
-}
-
-func authorizationGenericFieldMatchesPolicy[T cmp.Ordered, V string](fieldValue T, operator V, policyValue T) bool {
-	switch operator {
 	case ">":
 		return fieldValue > policyValue
 	case ">=":
