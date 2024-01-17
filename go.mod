@@ -8,3 +8,5 @@ require (
 	github.com/gorilla/schema v1.2.1
 	github.com/mattn/go-sqlite3 v1.14.19
 )
+
+require github.com/google/uuid v1.5.0
