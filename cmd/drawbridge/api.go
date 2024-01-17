@@ -1,7 +1,7 @@
 package drawbridge
 
 import (
-	auth "dhens/drawbridge/cmd/drawbridge/client"
+	auth "dhens/drawbridge/cmd/drawbridge/client/auth"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"encoding/json"
 	"fmt"
