@@ -8,7 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	auth "dhens/drawbridge/cmd/drawbridge/client"
+	auth "dhens/drawbridge/cmd/drawbridge/client/auth"
 	"dhens/drawbridge/cmd/utils"
 	"encoding/json"
 	"encoding/pem"
