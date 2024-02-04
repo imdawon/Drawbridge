@@ -2,6 +2,7 @@ package db
 
 import (
 	"dhens/drawbridge/cmd/drawbridge"
+	"dhens/drawbridge/cmd/drawbridge/client"
 	"fmt"
 )
 
@@ -42,37 +43,34 @@ func (r *SQLiteRepository) CreateNewEmissaryClient(client drawbridge.ProtectedSe
 
 }
 
-func (r *SQLiteRepository) GetEmissaryClientById(id int64) (*drawbridge.ProtectedService, error) {
+func (r *SQLiteRepository) GetEmissaryClientById(id int64) (*client.EmissaryClient, error) {
 	rows, err := r.db.Query("SELECT * FROM emissary_clients WHERE id = ?", id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting emissary client id %d: %s", id, err)
 	}
 	defer rows.Close()
 
-	var service drawbridge.ProtectedService
+	var client client.EmissaryClient
 	for rows.Next() {
 		if err := rows.Scan(
-			&service.ID,
-			&service.Name,
-			&service.Description,
-			&service.Host,
-			&service.Port); err != nil {
-			return nil, err
+			&client.ID,
+			&client.OperatingSystemVersion,
+			&client.LastSuccessfulConfigEvalResponse,
+		); err != nil {
+			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
 		}
 	}
-	return &service, nil
+	return &client, nil
 }
 
-func (r *SQLiteRepository) UpdateEmissaryClient(updated *drawbridge.ProtectedService, id int64) error {
+func (r *SQLiteRepository) UpdateEmissaryClient(updated *client.EmissaryClient, id int64) error {
 	if id == 0 {
-		return fmt.Errorf("invalid updated ID")
+		return fmt.Errorf("the emissary client id supplied is invalid. unable to update emissary client row")
 	}
 	res, err := r.db.Exec(
-		"UPDATE emissary_clients SET name = ?, description = ?, host = ?, port = ? WHERE id = ?",
-		updated.Name,
-		updated.Description,
-		updated.Host,
-		updated.Port,
+		"UPDATE emissary_clients SET os_version = ?, last_successful_eval = ? WHERE id = ?",
+		updated.OperatingSystemVersion,
+		updated.LastSuccessfulConfigEvalResponse,
 		id,
 	)
 	if err != nil {
@@ -81,7 +79,7 @@ func (r *SQLiteRepository) UpdateEmissaryClient(updated *drawbridge.ProtectedSer
 
 	rowsAffected, err := res.RowsAffected()
 	if rowsAffected == 0 {
-		return fmt.Errorf("update failed: %s", err)
+		return fmt.Errorf("no emissary client rows updated: %s", err)
 	}
 
 	return nil
