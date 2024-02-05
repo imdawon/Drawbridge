@@ -33,7 +33,7 @@ func main() {
 	flag.StringVar(
 		&flags.sqliteFilename,
 		"sqlfile",
-		"dashboard.db",
+		"drawbridge.db",
 		"file name for sqlite database",
 	)
 	flag.Parse()
@@ -69,5 +69,5 @@ func main() {
 		proxy.TestSetupTCPListener(ca)
 	}()
 
-	drawbridge.SetUp(flags.backendAPIHostAndPort, ca)
+	drawbridge.SetUpEmissaryAPI(flags.backendAPIHostAndPort, ca)
 }

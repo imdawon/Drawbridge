@@ -43,15 +43,13 @@ func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) 
 	if clientIsAuthorized {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "client auth success!")
-
 	} else {
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "unauthorized!")
-
+		fmt.Fprintf(w, "client auth failure (unauthorized)!")
 	}
 }
 
-func SetUp(hostAndPort string, ca *certificates.CA) {
+func SetUpEmissaryAPI(hostAndPort string, ca *certificates.CA) {
 	r := http.NewServeMux()
 	r.HandleFunc("/emissary/v1/auth", handleClientAuthorizationRequest)
 	server := http.Server{
@@ -59,8 +57,9 @@ func SetUp(hostAndPort string, ca *certificates.CA) {
 		Addr:      hostAndPort,
 		Handler:   r,
 	}
-	log.Printf("Starting Drawbridge api service on %s", server.Addr)
+	slog.Info(fmt.Sprintf("Starting Drawbridge api service on %s", server.Addr))
 
+	// We pass "" into listen and serve since we have already configured cert and keyfile for server.
 	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
@@ -72,7 +71,7 @@ func SetUpReverseProxy(ca *certificates.CA) {
 		Addr:      "localhost:4443",
 		Handler:   r,
 	}
-	slog.Info(fmt.Sprintf("Listening Drawbridge reverse proxy at %s", server.Addr))
+	slog.Info(fmt.Sprintf("Starting Drawbridge reverse proxy on %s", server.Addr))
 
 	go func() {
 		log.Fatal(server.ListenAndServeTLS("", ""))
