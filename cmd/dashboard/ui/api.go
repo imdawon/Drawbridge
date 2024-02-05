@@ -4,10 +4,13 @@ import (
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/db"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
+
+	"log/slog"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
@@ -22,7 +25,7 @@ type Controller struct {
 }
 
 func (f *Controller) SetUp(hostAndPort string) error {
-	log.Printf("Starting frontend api service on %s", hostAndPort)
+	slog.Info(fmt.Sprintf("Starting frontend api service on %s", hostAndPort))
 
 	r := mux.NewRouter()
 

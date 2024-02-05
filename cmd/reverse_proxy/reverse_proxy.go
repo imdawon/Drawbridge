@@ -6,12 +6,13 @@ import (
 	proxy "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"time"
 )
 
 func TestSetupTCPListener(ca *proxy.CA) {
-	log.Printf("Spinning up TCP Listener on localhost:25565")
+	slog.Info("Spinning up TCP Listener on localhost:25565")
 	l, err := tls.Listen("tcp", "localhost:25565", ca.ServerTLSConfig)
 	if err != nil {
 		log.Fatalf("TCP Listen failed: %s", err)
@@ -38,7 +39,7 @@ func TestSetupTCPListener(ca *proxy.CA) {
 				log.Fatalf("Failed to dial: %v", err)
 			}
 
-			log.Printf("TCP Accept from: %s\n", clientConn.RemoteAddr())
+			slog.Info("TCP Accept from: %s\n", clientConn.RemoteAddr())
 			// Copy data back and from client and server.
 			go io.Copy(resourceConn, clientConn)
 			io.Copy(clientConn, resourceConn)

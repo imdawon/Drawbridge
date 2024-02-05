@@ -1,12 +1,13 @@
 package drawbridge
 
 import (
-	auth "dhens/drawbridge/cmd/drawbridge/client/auth"
+	"dhens/drawbridge/cmd/drawbridge/client"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -19,7 +20,7 @@ type ProtectedService struct {
 	Host                string `schema:"service-host" json:"service-host"`
 	Port                uint16 `schema:"service-port" json:"service-port"`
 	ClientPolicyID      int64  `schema:"service-policy-id,omitempty" json:"service-policy-id,omitempty"`
-	AuthorizationPolicy auth.AuthorizationPolicy
+	AuthorizationPolicy client.AuthorizationPolicy
 }
 
 func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) {
@@ -30,7 +31,7 @@ func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) 
 		fmt.Fprintf(w, "server error!")
 	}
 
-	clientAuth := auth.AuthorizationRequest{}
+	clientAuth := client.AuthorizationRequest{}
 	err = json.Unmarshal(body, &clientAuth)
 	if err != nil {
 		log.Fatalf("error unmarshalling client auth request: %s", err)
@@ -38,7 +39,7 @@ func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) 
 		fmt.Fprintf(w, "server error!")
 	}
 
-	clientIsAuthorized := auth.TestAuthorizationPolicy.ClientIsAuthorized(clientAuth)
+	clientIsAuthorized := client.TestAuthorizationPolicy.ClientIsAuthorized(clientAuth)
 	if clientIsAuthorized {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "client auth success!")
@@ -71,7 +72,7 @@ func SetUpReverseProxy(ca *certificates.CA) {
 		Addr:      "localhost:4443",
 		Handler:   r,
 	}
-	log.Printf("Listening Drawbridge reverse rpoxy at %s", server.Addr)
+	slog.Info(fmt.Sprintf("Listening Drawbridge reverse proxy at %s", server.Addr))
 
 	go func() {
 		log.Fatal(server.ListenAndServeTLS("", ""))
@@ -82,7 +83,7 @@ func SetUpReverseProxy(ca *certificates.CA) {
 }
 
 func myHandler(w http.ResponseWriter, req *http.Request) {
-	log.Printf("New request from %s", req.RemoteAddr)
+	slog.Debug(fmt.Sprintf("New request from %s", req.RemoteAddr))
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "success!")
 }
