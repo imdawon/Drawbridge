@@ -12,10 +12,10 @@ import (
 )
 
 func TestSetupTCPListener(ca *proxy.CA) {
-	slog.Info("Spinning up TCP Listener on localhost:25565")
+	slog.Info("Starting tcp reverse proxy on localhost:25565")
 	l, err := tls.Listen("tcp", "localhost:25565", ca.ServerTLSConfig)
 	if err != nil {
-		log.Fatalf("TCP Listen failed: %s", err)
+		log.Fatalf("Reverse proxy setup failed: %s", err)
 	}
 
 	defer l.Close()
@@ -23,7 +23,7 @@ func TestSetupTCPListener(ca *proxy.CA) {
 		// wait for connection
 		conn, err := l.Accept()
 		if err != nil {
-			log.Fatalf("TCP Accept failed: %s", err)
+			log.Fatalf("Reverse proxy TCP Accept failed: %s", err)
 		}
 		// Handle new connection in a new go routine.
 		// The loop then returns to accepting, so that
@@ -36,7 +36,7 @@ func TestSetupTCPListener(ca *proxy.CA) {
 			// connect to drawbridge on the port lsitening for the actual service
 			resourceConn, err := d.DialContext(ctx, "tcp", "localhost:25566")
 			if err != nil {
-				log.Fatalf("Failed to dial: %v", err)
+				log.Fatalf("Failed to tcp dial to drawbridge server: %v", err)
 			}
 
 			slog.Info("TCP Accept from: %s\n", clientConn.RemoteAddr())
