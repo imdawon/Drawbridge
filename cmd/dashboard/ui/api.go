@@ -4,7 +4,10 @@ import (
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/db"
+	proxy "dhens/drawbridge/cmd/reverse_proxy"
+	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -21,8 +24,17 @@ type Controller struct {
 	Sql *db.SQLiteRepository
 }
 
-func (f *Controller) SetUp(hostAndPort string) error {
+func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 	log.Printf("Starting frontend api service on %s", hostAndPort)
+
+	// Start listener for all services from the db
+	services, err := f.Sql.GetAllServices()
+	if err != nil {
+		log.Fatalf("Could not get all services: %s", err)
+	}
+	for _, service := range services {
+		go proxy.SetUpProtectedServiceTunnel(&service, ca)
+	}
 
 	r := mux.NewRouter()
 
@@ -30,12 +42,19 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		r.ParseForm()
 		newService := &drawbridge.ProtectedService{}
 		decoder.Decode(newService, r.Form)
-		f.Sql.CreateNewService(*newService)
+		newService, err := f.Sql.CreateNewService(*newService)
+		if err != nil {
+			slog.Error("error creatng new service: %w", err)
+		}
+
 		services, err := f.Sql.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
 		templates.GetServices(services).Render(r.Context(), w)
+
+		// Set up tcp reverse proxy that actually carries the client data to the desired protected resource.
+		go proxy.SetUpProtectedServiceTunnel(newService, ca)
 	})
 
 	r.HandleFunc("/service/{id}", func(w http.ResponseWriter, r *http.Request) {

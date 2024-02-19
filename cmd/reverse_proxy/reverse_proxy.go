@@ -3,18 +3,28 @@ package proxy
 import (
 	"context"
 	"crypto/tls"
+	"dhens/drawbridge/cmd/drawbridge"
 	proxy "dhens/drawbridge/cmd/reverse_proxy/ca"
+	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"time"
 )
 
-func TestSetupTCPListener(ca *proxy.CA) {
-	log.Printf("Spinning up TCP Listener on localhost:25565")
-	l, err := tls.Listen("tcp", "localhost:25565", ca.ServerTLSConfig)
+// This function will be called Whenever a new Protected Service is:
+// 1. Created in the dash
+// 2. Loaded from disk during Drawbridge startup
+// This function call sets up a tcp server, and each Protected Service gets its own tcp server.
+func SetUpProtectedServiceTunnel(protectedService *drawbridge.ProtectedService, ca *proxy.CA) {
+	// The host and port this tcp server will listen on.
+	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
+	hostAndPort := fmt.Sprintf("%s:%d", "localhost", protectedService.Port)
+	slog.Info(fmt.Sprintf("Spinning up TCP Listener for Protected Service \"%s\" on %s", protectedService.Name, hostAndPort))
+	l, err := tls.Listen("tcp", hostAndPort, ca.ServerTLSConfig)
 	if err != nil {
-		log.Fatalf("TCP Listen failed: %s", err)
+		slog.Error(fmt.Sprintf("TCP Listen failed: %s", err))
 	}
 
 	defer l.Close()
@@ -33,7 +43,7 @@ func TestSetupTCPListener(ca *proxy.CA) {
 			defer cancel()
 
 			// connect to drawbridge on the port lsitening for the actual service
-			resourceConn, err := d.DialContext(ctx, "tcp", "localhost:25566")
+			resourceConn, err := d.DialContext(ctx, "tcp", hostAndPort)
 			if err != nil {
 				log.Fatalf("Failed to dial: %v", err)
 			}
