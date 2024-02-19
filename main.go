@@ -32,7 +32,7 @@ func main() {
 	flag.StringVar(
 		&flags.sqliteFilename,
 		"sqlfile",
-		"drawbridge.db",
+		"dashboard.db",
 		"file name for sqlite database",
 	)
 	flag.Parse()
@@ -63,5 +63,5 @@ func main() {
 		drawbridge.SetUpReverseProxy(ca)
 	}()
 
-	drawbridge.SetUp(flags.backendAPIHostAndPort, ca)
+	drawbridge.SetUpEmissaryAPI(flags.backendAPIHostAndPort, ca)
 }

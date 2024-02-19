@@ -5,6 +5,7 @@ import (
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/db"
 	proxy "dhens/drawbridge/cmd/reverse_proxy"
+	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"log"
 	"log/slog"
 	"net/http"
