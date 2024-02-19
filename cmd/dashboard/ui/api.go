@@ -5,7 +5,6 @@ import (
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/db"
 	proxy "dhens/drawbridge/cmd/reverse_proxy"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -24,8 +23,8 @@ type Controller struct {
 	Sql *db.SQLiteRepository
 }
 
-func (f *Controller) SetUp(hostAndPort string) error {
-	slog.Info(fmt.Sprintf("Starting frontend api service on %s", hostAndPort))
+func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
+	log.Printf("Starting frontend api service on %s", hostAndPort)
 
 	// Start listener for all services from the db
 	services, err := f.Sql.GetAllServices()
