@@ -8,12 +8,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	auth "dhens/drawbridge/cmd/drawbridge/client/auth"
+	"dhens/drawbridge/cmd/drawbridge/client"
 	"dhens/drawbridge/cmd/utils"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/http"
@@ -34,7 +36,7 @@ func (c *CA) SetupCertificates() (err error) {
 
 	// Avoid generating new certificates and keys. Return TLS configs with the existing files.
 	if caCert != nil && serverCertExists && serverKeyExists {
-		log.Printf("TLS Certs & Keys already exist. Loading them from disk...")
+		slog.Info("TLS Certs & Keys already exist. Loading them from disk...")
 		certpool := x509.NewCertPool()
 		certpool.AppendCertsFromPEM(*caCert)
 
@@ -56,7 +58,7 @@ func (c *CA) SetupCertificates() (err error) {
 		}
 
 		// Terminate function early as we have all of the cert and key data we need.
-		log.Printf("success: Loaded TLS Certs & Keys")
+		slog.Info("Loaded TLS Certs & Keys")
 		return nil
 	}
 
@@ -205,18 +207,18 @@ func (c *CA) MakeClientRequest(url string) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("Cannot GET reverse proxy endpoint: %s", err)
+		log.Fatalf("GET request to %s failed: %s", url, err)
 	}
 	respBodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("Error reading body response from reverse proxy request: %s", err)
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
-	log.Printf("%s: <- client request body\n", body)
+	slog.Debug(fmt.Sprintf("client request body: %s", body))
 }
 
 func (c *CA) MakeClientAuthorizationRequest() {
-	// Communicate with the http server using an http.Client configured to trust our CA.
+	// Communicate with the http server using an http.Client configured to trust our Drawbridge CA.
 	transport := &http.Transport{
 		TLSClientConfig: c.ClientTLSConfig,
 	}
@@ -224,7 +226,7 @@ func (c *CA) MakeClientAuthorizationRequest() {
 		Transport: transport,
 	}
 
-	authorizationRequest := auth.TestAuthorizationRequest
+	authorizationRequest := client.TestAuthorizationRequest
 	out, err := json.Marshal(authorizationRequest)
 	if err != nil {
 		log.Fatalf("failed to marshal auth request: %s", err)
@@ -236,9 +238,8 @@ func (c *CA) MakeClientAuthorizationRequest() {
 	}
 	respBodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Error reading body response from client auth request: %s", err)
+		slog.Error("Error reading body response from client auth request: %s", err)
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
-	log.Printf("%s: <- client request body\n", body)
-
+	slog.Debug(fmt.Sprintf("client request body: %s", body))
 }

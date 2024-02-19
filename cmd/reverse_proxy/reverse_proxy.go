@@ -32,7 +32,7 @@ func SetUpProtectedServiceTunnel(protectedService *drawbridge.ProtectedService, 
 		// wait for connection
 		conn, err := l.Accept()
 		if err != nil {
-			log.Fatalf("TCP Accept failed: %s", err)
+			log.Fatalf("Reverse proxy TCP Accept failed: %s", err)
 		}
 		// Handle new connection in a new go routine.
 		// The loop then returns to accepting, so that
@@ -45,10 +45,10 @@ func SetUpProtectedServiceTunnel(protectedService *drawbridge.ProtectedService, 
 			// connect to drawbridge on the port lsitening for the actual service
 			resourceConn, err := d.DialContext(ctx, "tcp", hostAndPort)
 			if err != nil {
-				log.Fatalf("Failed to dial: %v", err)
+				log.Fatalf("Failed to tcp dial to drawbridge server: %v", err)
 			}
 
-			log.Printf("TCP Accept from: %s\n", clientConn.RemoteAddr())
+			slog.Info("TCP Accept from: %s\n", clientConn.RemoteAddr())
 			// Copy data back and from client and server.
 			go io.Copy(resourceConn, clientConn)
 			io.Copy(clientConn, resourceConn)
