@@ -1,8 +1,9 @@
-package auth
+package client
 
 import (
 	"cmp"
 	"fmt"
+	"log/slog"
 	"net"
 	"reflect"
 )
@@ -54,15 +55,15 @@ type Operator string
 func (arv AuthorizationPolicy) ClientIsAuthorized(clientAuthorization AuthorizationRequest) bool {
 	authorizationPolicyRequirementsValues := reflect.ValueOf(arv.Requirements)
 	clientAuthorizationValues := reflect.ValueOf(clientAuthorization)
-	operatorValues := arv.Requirements.Operators
+	comparisonOperatorValues := arv.Requirements.Operators
 	for i := 0; i < clientAuthorizationValues.NumField(); i++ {
-		currentPolicyValue := authorizationPolicyRequirementsValues.Field(i)
-		currentClientField := clientAuthorizationValues.Field(i)
-		currentOperator := operatorValues[i]
-		if !clientAuthorizationFieldMatchesPolicy(currentClientField.String(), string(currentOperator), currentPolicyValue.String()) {
+		policyValue := authorizationPolicyRequirementsValues.Field(i)
+		clientField := clientAuthorizationValues.Field(i)
+		comparisonOperator := comparisonOperatorValues[i]
+		if !clientAuthorizationFieldMatchesPolicy(clientField.String(), string(comparisonOperator), policyValue.String()) {
 			return false
 		}
-		fmt.Printf("current eval: %s %s %s\n", currentClientField, currentOperator, currentPolicyValue)
+		slog.Debug(fmt.Sprintf("current eval: %s %s %s\n", clientField, comparisonOperator, policyValue))
 	}
 	return true
 }

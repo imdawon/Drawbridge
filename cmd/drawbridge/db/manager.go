@@ -5,6 +5,7 @@ import (
 	"dhens/drawbridge/cmd/drawbridge"
 	"fmt"
 	"log"
+	"log/slog"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -146,6 +147,6 @@ func OpenDatabaseFile(filename string) *sql.DB {
 	if err != nil {
 		log.Fatalf("Error opening sqlite db: %s", err)
 	}
-	log.Printf("Opened database file")
+	slog.Info("Opened database file")
 	return db
 }

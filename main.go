@@ -32,7 +32,7 @@ func main() {
 	flag.StringVar(
 		&flags.sqliteFilename,
 		"sqlfile",
-		"dashboard.db",
+		"drawbridge.db",
 		"file name for sqlite database",
 	)
 	flag.Parse()

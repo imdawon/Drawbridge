@@ -3,7 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 )
@@ -14,7 +13,7 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	// Verify the file doesn't exist before opening.
 	_, err := os.Open(fullFilePath)
 	if !errors.Is(err, os.ErrNotExist) {
-		log.Printf("Skipping existing save file: %s\n", fullFilePath)
+		slog.Info(fmt.Sprintf("Skipping existing Drawbridge file: %s", fullFilePath))
 		return nil
 	}
 
@@ -43,14 +42,4 @@ func ReadFile(pathWithFilename string) *[]byte {
 		return &file
 	}
 	return nil
-}
-
-func Sloggerf(level string, message string, args ...any) {
-	switch level {
-	case "info":
-		slog.Info(fmt.Sprintf(message, args...))
-	case "debug":
-		slog.Debug(fmt.Sprintf(message, args...))
-	}
-
 }
