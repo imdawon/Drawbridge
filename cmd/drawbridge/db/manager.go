@@ -43,12 +43,12 @@ func (r *SQLiteRepository) CreateNewService(service drawbridge.ProtectedService)
 		service.Port,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting new service: %s", err)
+		return nil, fmt.Errorf("error inserting new service into the db: %w", err)
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("a new service was inserted into the db, but an error was returned when retrieving the id for it: %w", err)
 	}
 
 	service.ID = id
@@ -59,7 +59,7 @@ func (r *SQLiteRepository) CreateNewService(service drawbridge.ProtectedService)
 func (r *SQLiteRepository) GetAllServices() ([]drawbridge.ProtectedService, error) {
 	rows, err := r.db.Query("SELECT * from services")
 	if err != nil {
-		return nil, fmt.Errorf("error getting all services: %s", err)
+		return nil, fmt.Errorf("error getting all services: %w", err)
 	}
 	defer rows.Close()
 

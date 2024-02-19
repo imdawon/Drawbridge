@@ -4,7 +4,6 @@ import (
 	frontend "dhens/drawbridge/cmd/dashboard/ui"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/db"
-	proxy "dhens/drawbridge/cmd/reverse_proxy"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"flag"
 	"log"
@@ -56,17 +55,12 @@ func main() {
 
 	// Set up templ controller used to return hypermedia to our htmx frontend.
 	go func() {
-		frontendController.SetUp(flags.frontendAPIHostAndPort)
+		frontendController.SetUp(flags.frontendAPIHostAndPort, ca)
 	}()
 
 	// Set up mTLS http server
 	go func() {
 		drawbridge.SetUpReverseProxy(ca)
-	}()
-
-	// Set up tcp reverse proxy that actually carries the client data to the desired protected resource.
-	go func() {
-		proxy.TestSetupTCPListener(ca)
 	}()
 
 	drawbridge.SetUp(flags.backendAPIHostAndPort, ca)
