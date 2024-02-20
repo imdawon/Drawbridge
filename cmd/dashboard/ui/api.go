@@ -6,6 +6,7 @@ import (
 	"dhens/drawbridge/cmd/drawbridge/db"
 	proxy "dhens/drawbridge/cmd/reverse_proxy"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -25,15 +26,15 @@ type Controller struct {
 }
 
 func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
-	log.Printf("Starting frontend api service on %s", hostAndPort)
+	slog.Info(fmt.Sprintf("Starting frontend api service on %s", hostAndPort))
 
-	// Start listener for all services from the db
 	services, err := f.Sql.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}
+	// Start listener for all Protected Services
 	for _, service := range services {
-		go proxy.SetUpProtectedServiceTunnel(&service, ca)
+		proxy.SetUpProtectedServiceTunnel(&service, ca)
 	}
 
 	r := mux.NewRouter()
