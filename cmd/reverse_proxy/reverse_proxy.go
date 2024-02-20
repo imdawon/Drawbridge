@@ -17,7 +17,7 @@ import (
 // 1. Created in the dash
 // 2. Loaded from disk during Drawbridge startup
 // This function call sets up a tcp server, and each Protected Service gets its own tcp server.
-func SetUpProtectedServiceTunnel(protectedService *drawbridge.ProtectedService, ca *proxy.CA) {
+func SetUpProtectedServiceTunnel(protectedService drawbridge.ProtectedService, ca *proxy.CA) {
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
 	hostAndPort := fmt.Sprintf("%s:%d", "localhost", protectedService.Port)
