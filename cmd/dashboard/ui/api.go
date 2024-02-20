@@ -34,7 +34,7 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 	}
 	// Start listener for all Protected Services
 	for _, service := range services {
-		proxy.SetUpProtectedServiceTunnel(&service, ca)
+		go proxy.SetUpProtectedServiceTunnel(service, ca)
 	}
 
 	r := mux.NewRouter()
@@ -55,7 +55,7 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 		templates.GetServices(services).Render(r.Context(), w)
 
 		// Set up tcp reverse proxy that actually carries the client data to the desired protected resource.
-		go proxy.SetUpProtectedServiceTunnel(newService, ca)
+		go proxy.SetUpProtectedServiceTunnel(*newService, ca)
 	})
 
 	r.HandleFunc("/service/{id}", func(w http.ResponseWriter, r *http.Request) {
