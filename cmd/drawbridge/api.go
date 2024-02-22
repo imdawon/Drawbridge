@@ -77,7 +77,7 @@ func SetUpReverseProxy(ca *certificates.CA) {
 		log.Fatal(server.ListenAndServeTLS("", ""))
 	}()
 
-	ca.MakeClientRequest(fmt.Sprintf("https://%s", server.Addr))
+	ca.MakeClientHttpRequest(fmt.Sprintf("https://%s", server.Addr))
 	ca.MakeClientAuthorizationRequest()
 }
 

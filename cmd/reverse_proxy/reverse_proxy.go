@@ -22,7 +22,7 @@ func SetUpProtectedServiceTunnel(protectedService drawbridge.ProtectedService, c
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
 	hostAndPort := fmt.Sprintf("%s:%d", "localhost", protectedService.Port)
 	slog.Info(fmt.Sprintf("Starting up TCP Listener for Protected Service \"%s\" on %s", protectedService.Name, hostAndPort))
-	l, err := tls.Listen("tcp", "127.0.0.1:25566", ca.ServerTLSConfig)
+	l, err := tls.Listen("tcp", "127.0.0.1:25567", ca.ServerTLSConfig)
 	if err != nil {
 		slog.Error(fmt.Sprintf("TCP Listen failed: %s", err))
 	}
@@ -43,7 +43,7 @@ func SetUpProtectedServiceTunnel(protectedService drawbridge.ProtectedService, c
 			defer cancel()
 
 			// connect to drawbridge on the port lsitening for the actual service
-			resourceConn, err := d.DialContext(ctx, "tcp", "127.0.0.1:25565")
+			resourceConn, err := d.DialContext(ctx, "tcp", "127.0.0.1:25566")
 			if err != nil {
 				log.Fatalf("Failed to tcp dial to drawbridge server: %v", err)
 			}
