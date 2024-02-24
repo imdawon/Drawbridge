@@ -13,20 +13,9 @@ Drawbridge is a reverse proxy with configurable authentication and attestation r
 
 Add Emissary to as many of your machines as you want, expose the Drawbridge reverse proxy server with required authentication details, _instead_ of your insecure web application or "movie server", and bam: your service is only accessible from Emissary clients.
 
-## How to set up as quickly as possible
-### Setup Drawbridge
-1. Download or build the latest version of Drawbridge
-2. Run the Drawbridge binary and follow it's instructions to access the Dash.
-3. Add the details for the service you want to protect in the Dash.
-4. Configure your Drawbridge Policy that Emissary clients have to pass to access your service.
-5. Click "Download Bundled Emissary client" and set the downloaded zip file aside for next steps.
-### Set up an Emissary client
-6. Transfer Emissary client from step 5 onto client machine (the one you want to access your service from)
-7. Unzip the Emissary_xxxxx.zip file and run Emissary.exe
-8. Enter your server IP or hostname into the connection dialog.
-9. If the Emissary client reports the proper information to the entered Drawbridge server, you should see the UI turn green and indicte that you are now connected to Drawbridge!
-  
-  If you encountered an error, ensure your machine matches your policy you configured in step 4. ***If things still aren't working, please refer to our Troubleshooting guide.***
+[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications-%E2%80%90-v1.0%E2%80%90alpha)
+
+ ***If things still aren't working, please refer to our Troubleshooting guide.***
 
 ## Goals
 The goal of the Emissary / Drawbridge solution is rapidly and easily exposing a self-hosted service to the internet for access by authorized clients.
