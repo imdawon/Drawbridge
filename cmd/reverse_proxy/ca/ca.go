@@ -2,6 +2,7 @@ package certificates
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -19,7 +20,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -28,27 +28,28 @@ type CA struct {
 	CertPool             *x509.CertPool
 	ClientTLSConfig      *tls.Config
 	ServerTLSConfig      *tls.Config
-	CertificateAuthority x509.Certificate
-	CAPrivateKey         ecdsa.PrivateKey
+	CertificateAuthority *x509.Certificate
+	PrivateKey           crypto.PrivateKey
 }
 
 func (c *CA) SetupCertificates() (err error) {
-	caCert := utils.ReadFile("./cmd/reverse_proxy/ca/ca.crt")
+	caCertContents := utils.ReadFile("./cmd/reverse_proxy/ca/ca.crt")
 	caPrivKeyContents := utils.ReadFile("./cmd/reverse_proxy/ca/ca.key")
 	serverCertExists := utils.FileExists("./cmd/reverse_proxy/ca/server-cert.crt")
 	serverKeyExists := utils.FileExists("./cmd/reverse_proxy/ca/server-key.key")
 
 	// Avoid generating new certificates and keys. Return TLS configs with the existing files.
-	if caCert != nil && serverCertExists && serverKeyExists && caPrivKeyContents != nil {
+	if caCertContents != nil && serverCertExists && serverKeyExists && caPrivKeyContents != nil {
 		slog.Info("TLS Certs & Keys already exist. Loading them from disk...")
 		certpool := x509.NewCertPool()
-		certpool.AppendCertsFromPEM(*caCert)
+		certpool.AppendCertsFromPEM(*caCertContents)
 
-		caPrivateKey, err := x509.ParseECPrivateKey(*caPrivKeyContents)
+		// Combine the keypair for the CA certificate
+		caCert, err := tls.LoadX509KeyPair("./cmd/reverse_proxy/ca/ca.crt", "./cmd/reverse_proxy/ca/ca.key")
 		if err != nil {
 			log.Fatal(err)
 		}
-		c.CAPrivateKey = *caPrivateKey
+		c.PrivateKey = caCert.PrivateKey
 
 		// Read the key pair to create certificate
 		serverCert, err := tls.LoadX509KeyPair("./cmd/reverse_proxy/ca/server-cert.crt", "./cmd/reverse_proxy/ca/server-key.key")
@@ -75,6 +76,7 @@ func (c *CA) SetupCertificates() (err error) {
 	// CA Cert, Server Cert, and Server key do not exist yet. We will generate them now, and save them to disk for reuse.
 	// 1. Set up our CA certificate
 	ca := x509.Certificate{
+		DNSNames:     []string{"localhost"},
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
@@ -92,20 +94,10 @@ func (c *CA) SetupCertificates() (err error) {
 		BasicConstraintsValid: true,
 	}
 
-	c.CertificateAuthority = ca
+	c.CertificateAuthority = &ca
 
 	// Create our private and public key for the Certificate Authority.
 	caPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	if err != nil {
-		return err
-	}
-
-	c.CAPrivateKey = *caPrivKey
-	caPrivateKeyBytes, err := x509.MarshalECPrivateKey(caPrivKey)
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile("./cmd/reverse_proxy/ca/ca.key", caPrivateKeyBytes, 0644)
 	if err != nil {
 		return err
 	}
@@ -143,9 +135,18 @@ func (c *CA) SetupCertificates() (err error) {
 		Type:  "EC PRIVATE KEY",
 		Bytes: caPrivKeyPEMBytes,
 	})
+	err = utils.SaveFile("ca.key", caPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
+	if err != nil {
+		return err
+	}
+
+	serverCert, err := tls.X509KeyPair(caPEM.Bytes(), caPrivKeyPEM.Bytes())
+	if err != nil {
+		return err
+	}
 
 	// 2. Set up our server certificate
-	cert := x509.Certificate{
+	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		// TODO: Must be domain name or IP during user dash setup
 		DNSNames: []string{"localhost"},
@@ -171,7 +172,7 @@ func (c *CA) SetupCertificates() (err error) {
 	}
 
 	// Create the server certificate and sign it with our CA.
-	certBytes, err := x509.CreateCertificate(rand.Reader, &cert, &ca, &certPrivKey.PublicKey, caPrivKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, &ca, &certPrivKey.PublicKey, caPrivKey)
 	if err != nil {
 		return err
 	}
@@ -201,10 +202,9 @@ func (c *CA) SetupCertificates() (err error) {
 	if err != nil {
 		return err
 	}
-	serverCert, err := tls.X509KeyPair(certPEM.Bytes(), certPrivKeyPEM.Bytes())
-	if err != nil {
-		return err
-	}
+
+	// Store the CA private key in our CA struct for use later during runtime.
+	c.PrivateKey = caPrivKey
 
 	certpool := x509.NewCertPool()
 	certpool.AppendCertsFromPEM(caPEM.Bytes())
@@ -241,7 +241,7 @@ func (c *CA) MakeClientHttpRequest(url string) {
 		log.Printf("Error reading body response from reverse proxy request: %s", err)
 	}
 	body := strings.TrimSpace(string(respBodyBytes[:]))
-	slog.Debug(fmt.Sprintf("client request body: %s", body))
+	slog.Info(fmt.Sprintf("client request body: %s", body))
 }
 
 func (c *CA) MakeClientAuthorizationRequest() {
@@ -280,7 +280,7 @@ func (c *CA) CreateEmissaryClientTCPMutualTLSKey(clientId string) error {
 		slog.Error("Unable to create new Emissary Client TCP mTLS key. Server certificate does not exist!")
 	}
 
-	cert := &x509.Certificate{
+	clientCert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		// TODO: Must be domain name or IP during user dash setup
 		DNSNames: []string{"localhost"},
@@ -300,13 +300,13 @@ func (c *CA) CreateEmissaryClientTCPMutualTLSKey(clientId string) error {
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
 
-	certPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	clientCertPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return err
 	}
 
-	// Create the client certificate and sign it with our CA.
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, &c.CertificateAuthority, &certPrivKey.PublicKey, c.CAPrivateKey)
+	// Create the client certificate and sign it with our CA private key.
+	clientCertBytes, err := x509.CreateCertificate(rand.Reader, clientCert, c.CertificateAuthority, &clientCertPrivKey.PublicKey, c.PrivateKey)
 	if err != nil {
 		slog.Error(fmt.Sprintf("%s", err))
 	}
@@ -314,15 +314,15 @@ func (c *CA) CreateEmissaryClientTCPMutualTLSKey(clientId string) error {
 	certPEM := new(bytes.Buffer)
 	pem.Encode(certPEM, &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: certBytes,
+		Bytes: clientCertBytes,
 	})
 	// Save the file to disk for use by an Emissary client. This should be later used and saved in the db for downloading later.
-	err = utils.SaveFile("emissary-mtls-tcp.crt", certPEM.String(), "./keys-for-emissary-here")
+	err = utils.SaveFile("emissary-mtls-tcp.crt", certPEM.String(), "./emissary_certs_and_key_here")
 	if err != nil {
 		return err
 	}
 
-	certPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(certPrivKey)
+	certPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(clientCertPrivKey)
 	if err != nil {
 		return err
 	}
@@ -333,7 +333,7 @@ func (c *CA) CreateEmissaryClientTCPMutualTLSKey(clientId string) error {
 		Bytes: certPrivKeyPEMBytes,
 	})
 	// Save the file to disk for use by an Emissary client. This should be later used and saved in the db for downloading later.
-	err = utils.SaveFile("emissary-mtls-tcp.key", certPrivKeyPEM.String(), "../Emissary-Daemon/mtls")
+	err = utils.SaveFile("emissary-mtls-tcp.key", certPrivKeyPEM.String(), "./emissary_certs_and_key_here")
 	if err != nil {
 		slog.Error(fmt.Sprintf("Error saving x509 keypair for Emissary client to disk: %s", err))
 	}
