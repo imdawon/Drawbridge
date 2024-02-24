@@ -43,14 +43,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error running db migration: %s", err)
 	}
-	frontendController := frontend.Controller{
-		Sql: sqliteRepository,
-	}
 
 	ca := &certificates.CA{}
 	err = ca.SetupCertificates()
 	if err != nil {
 		log.Fatalf("Error setting up root CA: %s", err)
+	}
+
+	frontendController := frontend.Controller{
+		Sql: sqliteRepository,
+		CA:  ca,
 	}
 
 	// Set up templ controller used to return hypermedia to our htmx frontend.

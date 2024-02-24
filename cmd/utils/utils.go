@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 )
@@ -17,9 +18,17 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 		return nil
 	}
 
+	// Create folder path if it doesn't exist.
+	if _, err := os.Stat(relativePath); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(relativePath, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	f, err := os.Create(fullFilePath)
 	if err != nil {
-		return fmt.Errorf("error creating file: %s/%s", fileName, relativePath)
+		return fmt.Errorf("error creating file: %s/%s", relativePath, fileName)
 	}
 	defer f.Close()
 
