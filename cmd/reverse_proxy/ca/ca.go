@@ -33,10 +33,10 @@ type CA struct {
 }
 
 func (c *CA) SetupCertificates() (err error) {
-	caCertContents := utils.ReadFile("./cmd/reverse_proxy/ca/ca.crt")
-	caPrivKeyContents := utils.ReadFile("./cmd/reverse_proxy/ca/ca.key")
-	serverCertExists := utils.FileExists("./cmd/reverse_proxy/ca/server-cert.crt")
-	serverKeyExists := utils.FileExists("./cmd/reverse_proxy/ca/server-key.key")
+	caCertContents := utils.ReadFile("ca/ca.crt")
+	caPrivKeyContents := utils.ReadFile("ca/ca.key")
+	serverCertExists := utils.FileExists("ca/server-cert.crt")
+	serverKeyExists := utils.FileExists("ca/server-key.key")
 
 	// Avoid generating new certificates and keys. Return TLS configs with the existing files.
 	if caCertContents != nil && serverCertExists && serverKeyExists && caPrivKeyContents != nil {
@@ -45,14 +45,14 @@ func (c *CA) SetupCertificates() (err error) {
 		certpool.AppendCertsFromPEM(*caCertContents)
 
 		// Combine the keypair for the CA certificate
-		caCert, err := tls.LoadX509KeyPair("./cmd/reverse_proxy/ca/ca.crt", "./cmd/reverse_proxy/ca/ca.key")
+		caCert, err := tls.LoadX509KeyPair("ca/ca.crt", "ca/ca.key")
 		if err != nil {
 			log.Fatal(err)
 		}
 		c.PrivateKey = caCert.PrivateKey
 
 		// Read the key pair to create certificate
-		serverCert, err := tls.LoadX509KeyPair("./cmd/reverse_proxy/ca/server-cert.crt", "./cmd/reverse_proxy/ca/server-key.key")
+		serverCert, err := tls.LoadX509KeyPair("ca/server-cert.crt", "ca/server-key.key")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -115,7 +115,7 @@ func (c *CA) SetupCertificates() (err error) {
 		Bytes: caBytes,
 	})
 
-	err = utils.SaveFile("ca.crt", caPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("ca.crt", caPEM.String(), "ca")
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (c *CA) SetupCertificates() (err error) {
 		Type:  "EC PRIVATE KEY",
 		Bytes: caPrivKeyPEMBytes,
 	})
-	err = utils.SaveFile("ca.key", caPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("ca.key", caPrivKeyPEM.String(), "ca")
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (c *CA) SetupCertificates() (err error) {
 		Type:  "CERTIFICATE",
 		Bytes: certBytes,
 	})
-	err = utils.SaveFile("server-cert.crt", certPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("server-cert.crt", certPEM.String(), "ca")
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (c *CA) SetupCertificates() (err error) {
 		Bytes: certPrivKeyPEMBytes,
 	})
 
-	err = utils.SaveFile("server-key.key", certPrivKeyPEM.String(), "./cmd/reverse_proxy/ca")
+	err = utils.SaveFile("server-key.key", certPrivKeyPEM.String(), "ca")
 	if err != nil {
 		return err
 	}
@@ -275,7 +275,7 @@ func (c *CA) MakeClientAuthorizationRequest() {
 // The user will connect to the local proxy server the Emissary Client creates and all traffic will then flow
 // through Drawbridge.
 func (c *CA) CreateEmissaryClientTCPMutualTLSKey(clientId string) error {
-	serverCertExists := utils.FileExists("./cmd/reverse_proxy/ca/server-cert.crt")
+	serverCertExists := utils.FileExists("ca/server-cert.crt")
 	if !serverCertExists {
 		slog.Error("Unable to create new Emissary Client TCP mTLS key. Server certificate does not exist!")
 	}
