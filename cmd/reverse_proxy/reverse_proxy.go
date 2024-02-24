@@ -20,11 +20,10 @@ import (
 func SetUpProtectedServiceTunnel(protectedService drawbridge.ProtectedService, ca *proxy.CA) {
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
-	hostAndPort := fmt.Sprintf("%s:%d", "localhost", protectedService.Port)
-	slog.Info(fmt.Sprintf("Starting up TCP Listener for Protected Service \"%s\" on %s", protectedService.Name, hostAndPort))
-	l, err := tls.Listen("tcp", "127.0.0.1:8000", ca.ServerTLSConfig)
+	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, "0.0.0.0:3100"))
+	l, err := tls.Listen("tcp", "0.0.0.0:3100", ca.ServerTLSConfig)
 	if err != nil {
-		slog.Error(fmt.Sprintf("TCP Listen failed: %s", err))
+		slog.Error(fmt.Sprintf("Reverse proxy TCP Listen failed: %s", err))
 	}
 
 	defer l.Close()
@@ -42,13 +41,13 @@ func SetUpProtectedServiceTunnel(protectedService drawbridge.ProtectedService, c
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 
-			// connect to drawbridge on the port lsitening for the actual service
-			resourceConn, err := d.DialContext(ctx, "tcp", "127.0.0.1:25565")
+			// Proxy traffic to the actual service the Emissary client is trying to connect to.
+			resourceConn, err := d.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", protectedService.Host, protectedService.Port))
 			if err != nil {
-				log.Fatalf("Failed to tcp dial to drawbridge server: %v", err)
+				log.Fatalf("Failed to tcp dial to actual target serviec: %v", err)
 			}
 
-			slog.Info(fmt.Sprintf("TCP Accept from: %s\n", clientConn.RemoteAddr()))
+			slog.Info(fmt.Sprintf("TCP Accept from Emissary client: %s\n", clientConn.RemoteAddr()))
 			// Copy data back and from client and server.
 			go io.Copy(resourceConn, clientConn)
 			io.Copy(clientConn, resourceConn)
