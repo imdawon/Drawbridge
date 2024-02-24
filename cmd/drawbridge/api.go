@@ -71,7 +71,7 @@ func SetUpReverseProxy(ca *certificates.CA) {
 		Addr:      "localhost:4443",
 		Handler:   r,
 	}
-	slog.Info(fmt.Sprintf("Starting Drawbridge reverse proxy on %s", server.Addr))
+	slog.Info(fmt.Sprintf("Starting Drawbridge mTLS http server on %s", server.Addr))
 
 	go func() {
 		log.Fatal(server.ListenAndServeTLS("", ""))

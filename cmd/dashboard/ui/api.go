@@ -23,6 +23,7 @@ var decoder = schema.NewDecoder()
 
 type Controller struct {
 	Sql *db.SQLiteRepository
+	CA  *certificates.CA
 }
 
 func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
@@ -104,6 +105,14 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 			log.Fatalf("Could not get all services: %s", err)
 		}
 		templates.GetServices(services).Render(r.Context(), w)
+	})
+
+	r.HandleFunc("/admin/generate/emissary_auth_files", func(w http.ResponseWriter, r *http.Request) {
+		err := f.CA.CreateEmissaryClientTCPMutualTLSKey("testing")
+		if err != nil {
+			fmt.Fprintf(w, "Error saving Emissary Certificates and Key to local filesystem.")
+		}
+		fmt.Fprintf(w, "Successfully saved Emissary Certificates and Key to \"emissary_certs_and_key_here\" to local filesystem.")
 	})
 
 	// FOr testing, so we can access the html files we create
