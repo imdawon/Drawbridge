@@ -23,6 +23,11 @@ type ProtectedService struct {
 	AuthorizationPolicy client.AuthorizationPolicy
 }
 
+// When a request comes to our Emissary client api, this function verifies that the body matches the
+// Drawbridge Authorization Policy.
+// If authorized by passing the policy requirements, we will grant the Emissary client
+// an mTLS key to be used by the Emissary client to access an http resource.
+// If unauthorized, we send the Emissary client a 401.
 func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -49,6 +54,10 @@ func handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) 
 	}
 }
 
+// Set up an mTLS protected API to serve Emissary client requests.
+// The Emissary API is mainly to handle authentication of Emissary clients,
+// as well as provisioning mTLS certificates for them.
+// Proxying requests for TCP and UDP traffic is handled by the reverse proxy.
 func SetUpEmissaryAPI(hostAndPort string, ca *certificates.CA) {
 	r := http.NewServeMux()
 	r.HandleFunc("/emissary/v1/auth", handleClientAuthorizationRequest)
