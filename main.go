@@ -13,6 +13,7 @@ type CommandLineArgs struct {
 	frontendAPIHostAndPort string
 	backendAPIHostAndPort  string
 	sqliteFilename         string
+	env                    string
 }
 
 func main() {
@@ -32,8 +33,14 @@ func main() {
 	flag.StringVar(
 		&flags.sqliteFilename,
 		"sqlfile",
-		"dashboard.db",
-		"file name for sqlite database",
+		"drawbridge.db",
+		"file name for Drawbridge sqlite database",
+	)
+	flag.StringVar(
+		&flags.env,
+		"env",
+		"production",
+		"the environment that Drawbridge is running in (production, development)",
 	)
 	flag.Parse()
 
