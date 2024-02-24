@@ -10,6 +10,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -34,7 +35,11 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 		log.Fatalf("Could not get all services: %s", err)
 	}
 	// Start listener for all Protected Services
-	for _, service := range services {
+	for i, service := range services {
+		// We only support 1 service at a time for now.
+		if i > 1 {
+			break
+		}
 		go proxy.SetUpProtectedServiceTunnel(service, ca)
 	}
 
@@ -55,7 +60,7 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 		}
 		templates.GetServices(services).Render(r.Context(), w)
 
-		// Set up tcp reverse proxy that actually carries the client data to the desired protected resource.
+		// Set up tcp reverse proxy that actually carries the client data to the desired service.
 		go proxy.SetUpProtectedServiceTunnel(*newService, ca)
 	})
 
@@ -116,7 +121,13 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 	})
 
 	// FOr testing, so we can access the html files we create
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./cmd/dashboard/ui/static")))
+	env := os.Getenv("env")
+	if env == "development" {
+		r.PathPrefix("/").Handler(http.FileServer(http.Dir("./cmd/dashboard/ui/static")))
+	} else {
+		r.PathPrefix("/").Handler(http.FileServer(http.Dir("./ui/static")))
+
+	}
 
 	srv := &http.Server{
 		Handler: r,
