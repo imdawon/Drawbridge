@@ -13,8 +13,7 @@
   <header>
     <ul>
       <li>Protected Services available at </li>
-      <li hx-get="/admin/get/config" hx-trigger="load" hx-swap="innerHTML">...</li>
-      <hr>
+      <li id="listener-address" hx-get="/admin/get/config" hx-trigger="load" hx-swap="innerHTML">...</li>
     </ul>
   </header>
   <div id="services">
@@ -64,5 +63,6 @@
 
 </body>
 <script src="./htmx.min.js"></script>
+<script src="./_hyperscript.min.js"></script>
 
 </html>
