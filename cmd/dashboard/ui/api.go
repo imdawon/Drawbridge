@@ -53,6 +53,19 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
+	r.Get("/admin/get/config", func(w http.ResponseWriter, r *http.Request) {
+		listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
+		if listeningAddressBytes != nil {
+			listeningAddress := strings.TrimSpace(string(*listeningAddressBytes))
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, fmt.Sprintf("%s:%d", listeningAddress, 3100))
+		} else {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "...")
+
+		}
+	})
+
 	// Write the Drawbridge listener address to the listening_address.txt config file.
 	// This file is read from when we create the certificates (certificate authority and server certificate for mTLS)
 	// for Drawbridge.
@@ -80,7 +93,8 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
 		}
-		templates.GetServices(services).Render(r.Context(), w)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, fmt.Sprintf("%s:%d", newSettings.ListenerAddress, 3100))
 	})
 
 	r.Get("/admin/get/onboarding_modal", func(w http.ResponseWriter, r *http.Request) {
@@ -100,19 +114,6 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 			fmt.Fprintf(w, "Error saving Emissary Certificates and Key to local filesystem.")
 		}
 		fmt.Fprintf(w, "Successfully saved Emissary Certificates and Key to \"emissary_certs_and_key_here\" to local filesystem.")
-	})
-
-	r.Get("/admin/get/config", func(w http.ResponseWriter, r *http.Request) {
-		listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
-		if listeningAddressBytes != nil {
-			listeningAddress := strings.TrimSpace(string(*listeningAddressBytes))
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, fmt.Sprintf("%s:%d", listeningAddress, 3100))
-		} else {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "")
-
-		}
 	})
 
 	r.Post("/service/create", func(w http.ResponseWriter, r *http.Request) {
