@@ -23,6 +23,10 @@ type ProtectedService struct {
 	AuthorizationPolicy client.AuthorizationPolicy
 }
 
+type Settings struct {
+	ListenerAddress string `schema:"listener-address"`
+}
+
 // When a request comes to our Emissary client api, this function verifies that the body matches the
 // Drawbridge Authorization Policy.
 // If authorized by passing the policy requirements, we will grant the Emissary client

@@ -4,11 +4,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="./css/index.css"/>
   <title>Drawbridge Dashboard</title>
 </head>
 
 <body>
   <h1>Drawbridge Dashboard</h1>
+  <header>
+    <ul>
+      <li>Protected Services available at </li>
+      <li hx-get="/admin/get/config" hx-trigger="load" hx-swap="innerHTML">...</li>
+      <hr>
+    </ul>
+  </header>
   <div id="services">
     <h2>Protect new Service</h2>
     <p>Add a Service that authorized Emissary clients will be able to access via Drawbridge.</p>
@@ -28,7 +36,7 @@
     </ul>
   </div>
 
-  <form hx-post="/admin/generate/emissary_auth_files" hx-target="#geenrate-response">
+  <form hx-post="/admin/get/emissary_auth_files" hx-target="#geenrate-response">
     <label for="submit-geenrate">Generate Certificates and Key for an Emissary client</label>
     <input name="submit-geenrate" type="submit" value="Generate">
     <p id="geenrate-response"></p>
@@ -51,6 +59,9 @@
       </ul>
     </div>
   </div> -->
+
+<div id="onboarding-modal" hx-get="/admin/get/onboarding_modal" hx-trigger="load" hx-target="body" hx-swap="beforeend"></div>
+
 </body>
 <script src="./htmx.min.js"></script>
 

@@ -1,5 +1,11 @@
 github.com/a-h/templ v0.2.476 h1:+H4hP4CwK4kfJwXsE6kHeFWMGtcVOVoOm/I64uzARBk=
 github.com/a-h/templ v0.2.476/go.mod h1:zQ95mSyadNTGHv6k5Fm+wQU8zkBMMbHCHg7eAvUZKNM=
+github.com/a-h/templ v0.2.543 h1:8YyLvyUtf0/IE2nIwZ62Z/m2o2NqwhnMynzOL78Lzbk=
+github.com/a-h/templ v0.2.543/go.mod h1:jP908DQCwI08IrnTalhzSEH9WJqG/Q94+EODQcJGFUA=
+github.com/go-chi/chi v1.5.5 h1:vOB/HbEMt9QqBqErz07QehcOKHaWFtuj87tTDVz2qXE=
+github.com/go-chi/chi v1.5.5/go.mod h1:C9JqLr3tIYjDOZpzn+BCuxY8z8vmca43EeMgyZt7irw=
+github.com/go-chi/chi/v5 v5.0.12 h1:9euLV5sTrTNTRUU9POmDUvfxyj6LAABLUcEWO+JJb4s=
+github.com/go-chi/chi/v5 v5.0.12/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
