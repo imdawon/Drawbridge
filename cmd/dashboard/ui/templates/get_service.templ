@@ -4,16 +4,16 @@ import "dhens/drawbridge/cmd/drawbridge"
 import "strconv"
 import "fmt"
 
-templ GetService(service *drawbridge.Service) {
-    <div id={ fmt.Sprintf("service-%d",service.Id) }>
+templ GetService(service *drawbridge.ProtectedService) {
+    <div id={ fmt.Sprintf("service-%d",service.ID) }>
         <li>Name: { service.Name }</li>
         <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>
-        <button hx-get={ fmt.Sprintf("/service/%d/edit",service.Id) }
+        <button hx-get={ fmt.Sprintf("/service/%d/edit",service.ID) }
                 hx-trigger="click" 
-                hx-target={ fmt.Sprintf("#service-%d",service.Id) }>
+                hx-target={ fmt.Sprintf("#service-%d",service.ID) }>
                 Edit
         </button>
-        <button hx-delete={ fmt.Sprintf("/service/%d/delete",service.Id) }
+        <button hx-delete={ fmt.Sprintf("/service/%d/delete",service.ID) }
                 hx-trigger="click" 
                 hx-target="#protected-services-list"
                 hx-confirm="Are you sure to want to delete this service?">

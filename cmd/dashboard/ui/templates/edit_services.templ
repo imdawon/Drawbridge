@@ -4,8 +4,8 @@ import "dhens/drawbridge/cmd/drawbridge"
 import "strconv"
 import "fmt"
 
-templ EditServices(service *drawbridge.Service) {
-    <form hx-put={ fmt.Sprintf("/service/%d/edit",service.Id) } hx-target="this" hx-swap="outerHTML">
+templ EditServices(service *drawbridge.ProtectedService) {
+    <form hx-put={ fmt.Sprintf("/service/%d/edit",service.ID) } hx-target="this" hx-swap="outerHTML">
         <label for="service-name">Name</label>
         <input type="text" id="service-name-edit" name="service-name" value={ service.Name }/>
         <label for="service-name">Host</label>
@@ -13,6 +13,6 @@ templ EditServices(service *drawbridge.Service) {
         <label for="service-name">Port</label>
         <input type="number" id="service-port-edit" name="service-port" value={ strconv.FormatUint(uint64(service.Port), 10) }/>
         <button hx-confirm="Are you sure to want to update this service?">Submit</button>
-        <button hx-get={ fmt.Sprintf("/service/%d",service.Id)}>Cancel</button>
+        <button hx-get={ fmt.Sprintf("/service/%d",service.ID)}>Cancel</button>
     </form>
 }

@@ -47,14 +47,24 @@ func (c *CA) SetupCertificates() (err error) {
 		// Combine the keypair for the CA certificate
 		caCert, err := tls.LoadX509KeyPair("ca/ca.crt", "ca/ca.key")
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Error loading CA cert and key files: ", err)
 		}
 		c.PrivateKey = caCert.PrivateKey
 
+		// We have to decode the certificate into the ASN.1 DER format before attempting to parse it.
+		// Otherwise, we will error out when parsing.
+		block, _ := pem.Decode(*caCertContents)
+		if block == nil || block.Type != "CERTIFICATE" {
+			log.Fatal("failed to decode PEM block containing CERTIFICATE")
+		}
+		c.CertificateAuthority, err = x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			log.Fatal("Error parsing CA cert: ", err)
+		}
 		// Read the key pair to create certificate
 		serverCert, err := tls.LoadX509KeyPair("ca/server-cert.crt", "ca/server-key.key")
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Error loading server cert and key files: ", err)
 		}
 
 		c.ServerTLSConfig = &tls.Config{

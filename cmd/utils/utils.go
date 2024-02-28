@@ -14,7 +14,7 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	// Verify the file doesn't exist before opening.
 	_, err := os.Open(fullFilePath)
 	if !errors.Is(err, os.ErrNotExist) {
-		slog.Info(fmt.Sprintf("Skipping existing Drawbridge file: %s", fullFilePath))
+		slog.Info(fmt.Sprintf("SAVE FILE: Skipping existing Drawbridge file: %s", fullFilePath))
 		return nil
 	}
 

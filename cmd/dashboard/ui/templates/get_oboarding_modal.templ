@@ -1,0 +1,14 @@
+package templates
+
+templ GetOnboardingModal() {
+        <div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+            <div class="modal-underlay" _="on click trigger closeModal"></div>
+            <form class="modal-content" hx-post="/admin/post/config" hx-target="#geenrate-response">
+                <h2>Drawbridge Quick Setup</h2>
+                <label for="listener-address">What is your hostname or IP for accessing Drawbridge from the outside world?</label>
+                <p class="note-text">Note: This is the address your Emissary clients will use to connect to Drawbridge.</p>
+                <input name="listener-address" type="text" placeholder="drawbridge.mysite.com"/>
+                <input name="submit-config" type="submit" _="on click trigger closeModal"/>
+            </form>  
+        </div>
+}

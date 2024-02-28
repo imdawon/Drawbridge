@@ -3,49 +3,43 @@ package main
 import (
 	frontend "dhens/drawbridge/cmd/dashboard/ui"
 	"dhens/drawbridge/cmd/drawbridge"
-	"dhens/drawbridge/cmd/drawbridge/db"
+	"dhens/drawbridge/cmd/drawbridge/persistence"
+	flagger "dhens/drawbridge/cmd/flags"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"flag"
 	"log"
 )
 
-type CommandLineArgs struct {
-	frontendAPIHostAndPort string
-	backendAPIHostAndPort  string
-	sqliteFilename         string
-	env                    string
-}
-
 func main() {
-	flags := &CommandLineArgs{}
+	flagger.FLAGS = &flagger.CommandLineArgs{}
 	flag.StringVar(
-		&flags.frontendAPIHostAndPort,
+		&flagger.FLAGS.FrontendAPIHostAndPort,
 		"fapi",
 		"localhost:3000",
 		"listening host and port for frontend api e.g localhost:3000",
 	)
 	flag.StringVar(
-		&flags.backendAPIHostAndPort,
+		&flagger.FLAGS.BackendAPIHostAndPort,
 		"api",
 		"localhost:3001",
 		"listening host and port for backend api e.g localhost:3001",
 	)
 	flag.StringVar(
-		&flags.sqliteFilename,
+		&flagger.FLAGS.SqliteFilename,
 		"sqlfile",
 		"drawbridge.db",
 		"file name for Drawbridge sqlite database",
 	)
 	flag.StringVar(
-		&flags.env,
+		&flagger.FLAGS.Env,
 		"env",
 		"production",
 		"the environment that Drawbridge is running in (production, development)",
 	)
 	flag.Parse()
 
-	dbHandle := db.OpenDatabaseFile(flags.sqliteFilename)
-	sqliteRepository := db.NewSQLiteRepository(dbHandle)
+	dbHandle := persistence.OpenDatabaseFile(flagger.FLAGS.SqliteFilename)
+	sqliteRepository := persistence.NewSQLiteRepository(dbHandle)
 	err := sqliteRepository.Migrate()
 	if err != nil {
 		log.Fatalf("Error running db migration: %s", err)
@@ -64,7 +58,7 @@ func main() {
 
 	// Set up templ controller used to return hypermedia to our htmx frontend.
 	go func() {
-		frontendController.SetUp(flags.frontendAPIHostAndPort, ca)
+		frontendController.SetUp(flagger.FLAGS.FrontendAPIHostAndPort, ca)
 	}()
 
 	// Set up mTLS http server
@@ -72,6 +66,6 @@ func main() {
 		drawbridge.SetUpReverseProxy(ca)
 	}()
 
-	drawbridge.SetUpEmissaryAPI(flags.backendAPIHostAndPort, ca)
+	drawbridge.SetUpEmissaryAPI(flagger.FLAGS.BackendAPIHostAndPort, ca)
 
 }
