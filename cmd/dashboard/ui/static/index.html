@@ -35,7 +35,7 @@
     </ul>
   </div>
 
-  <form hx-post="/admin/get/emissary_auth_files" hx-target="#geenrate-response">
+  <form hx-get="/admin/get/emissary_auth_files" hx-target="#geenrate-response">
     <label for="submit-geenrate">Generate Certificates and Key for an Emissary client</label>
     <input name="submit-geenrate" type="submit" value="Generate">
     <p id="geenrate-response"></p>

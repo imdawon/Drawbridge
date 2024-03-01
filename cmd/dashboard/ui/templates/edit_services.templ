@@ -1,10 +1,10 @@
 package templates
 
-import "dhens/drawbridge/cmd/drawbridge"
 import "strconv"
 import "fmt"
+import "dhens/drawbridge/cmd/drawbridge/types"
 
-templ EditServices(service *drawbridge.ProtectedService) {
+templ EditServices(service *types.ProtectedService) {
     <form hx-put={ fmt.Sprintf("/service/%d/edit",service.ID) } hx-target="this" hx-swap="outerHTML">
         <label for="service-name">Name</label>
         <input type="text" id="service-name-edit" name="service-name" value={ service.Name }/>

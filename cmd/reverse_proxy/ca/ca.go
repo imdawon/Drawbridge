@@ -9,18 +9,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"dhens/drawbridge/cmd/drawbridge/client"
 	"dhens/drawbridge/cmd/utils"
-	"encoding/json"
 	"encoding/pem"
-	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"math/big"
 	"net"
-	"net/http"
-	"strings"
 	"time"
 )
 
@@ -32,13 +26,15 @@ type CA struct {
 	PrivateKey           crypto.PrivateKey
 }
 
+var CertificateAuthority *CA
+
 func (c *CA) SetupCertificates() (err error) {
 	caCertContents := utils.ReadFile("ca/ca.crt")
 	caPrivKeyContents := utils.ReadFile("ca/ca.key")
 	serverCertExists := utils.FileExists("ca/server-cert.crt")
 	serverKeyExists := utils.FileExists("ca/server-key.key")
 
-	// Avoid generating new certificates and keys. Return TLS configs with the existing files.
+	// Avoid generating new certificates and keys because we already have. Return TLS configs with the existing files.
 	if caCertContents != nil && serverCertExists && serverKeyExists && caPrivKeyContents != nil {
 		slog.Info("TLS Certs & Keys already exist. Loading them from disk...")
 		certpool := x509.NewCertPool()
@@ -83,10 +79,15 @@ func (c *CA) SetupCertificates() (err error) {
 		return nil
 	}
 
+	// Read the listening address set by the Drawbridge admin. This is important as it sets the DNSNames fields
+	// for the certificate authority and server certificates, which is necessary to ensure the Emissary clients
+	// can validate the Drawbridge server they are connecting to, is, in fact, the correct one.
+	listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
+	listeningAddress := string(*listeningAddressBytes)
 	// CA Cert, Server Cert, and Server key do not exist yet. We will generate them now, and save them to disk for reuse.
 	// 1. Set up our CA certificate
 	ca := x509.Certificate{
-		DNSNames:     []string{"localhost"},
+		DNSNames:     []string{listeningAddress},
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
@@ -159,7 +160,7 @@ func (c *CA) SetupCertificates() (err error) {
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		// TODO: Must be domain name or IP during user dash setup
-		DNSNames: []string{"localhost"},
+		DNSNames: []string{listeningAddress},
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},
@@ -229,133 +230,6 @@ func (c *CA) SetupCertificates() (err error) {
 		RootCAs:      certpool,
 		Certificates: []tls.Certificate{serverCert},
 	}
-
-	return nil
-}
-
-func (c *CA) MakeClientHttpRequest(url string) {
-	// Communicate with the http server using an http.Client configured to trust our CA.
-	transport := &http.Transport{
-		TLSClientConfig: c.ClientTLSConfig,
-	}
-	http := http.Client{
-		Transport: transport,
-	}
-
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Fatalf("GET request to %s failed: %s", url, err)
-	}
-	respBodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading body response from reverse proxy request: %s", err)
-	}
-	body := strings.TrimSpace(string(respBodyBytes[:]))
-	slog.Info(fmt.Sprintf("client request body: %s", body))
-}
-
-func (c *CA) MakeClientAuthorizationRequest() {
-	// Communicate with the http server using an http.Client configured to trust our Drawbridge CA.
-	transport := &http.Transport{
-		TLSClientConfig: c.ClientTLSConfig,
-	}
-	http := http.Client{
-		Transport: transport,
-	}
-
-	authorizationRequest := client.TestAuthorizationRequest
-	out, err := json.Marshal(authorizationRequest)
-	if err != nil {
-		log.Fatalf("failed to marshal auth request: %s", err)
-	}
-
-	resp, err := http.Post("https://localhost:3001/emissary/v1/auth", "application/json", bytes.NewBuffer(out))
-	if err != nil {
-		log.Fatalf("POST to auth endpoint failed: %s", err)
-	}
-	respBodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		slog.Error("Error reading body response from client auth request: %s", err)
-	}
-	body := strings.TrimSpace(string(respBodyBytes[:]))
-	slog.Debug(fmt.Sprintf("client request body: %s", body))
-}
-
-// An Emissary TCP Mutual TLS Key is used to allow the Emissary Client to connect to Drawbridge directly.
-// The user will connect to the local proxy server the Emissary Client creates and all traffic will then flow
-// through Drawbridge.
-func (c *CA) CreateEmissaryClientTCPMutualTLSKey(clientId string) error {
-	serverCertExists := utils.FileExists("ca/server-cert.crt")
-	if !serverCertExists {
-		slog.Error("Unable to create new Emissary Client TCP mTLS key. Server certificate does not exist!")
-	}
-
-	clientCert := &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
-		// TODO: Must be domain name or IP during user dash setup
-		DNSNames: []string{"localhost"},
-		Subject: pkix.Name{
-			Organization:  []string{"Drawbridge"},
-			Country:       []string{""},
-			Province:      []string{""},
-			Locality:      []string{""},
-			StreetAddress: []string{""},
-			PostalCode:    []string{""},
-		},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}
-
-	clientCertPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	if err != nil {
-		return err
-	}
-
-	// Create the client certificate and sign it with our CA private key.
-	clientCertBytes, err := x509.CreateCertificate(rand.Reader, clientCert, c.CertificateAuthority, &clientCertPrivKey.PublicKey, c.PrivateKey)
-	if err != nil {
-		slog.Error(fmt.Sprintf("%s", err))
-	}
-
-	certPEM := new(bytes.Buffer)
-	pem.Encode(certPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: clientCertBytes,
-	})
-	// Save the file to disk for use by an Emissary client. This should be later used and saved in the db for downloading later.
-	err = utils.SaveFile("emissary-mtls-tcp.crt", certPEM.String(), "./emissary_certs_and_key_here")
-	if err != nil {
-		return err
-	}
-
-	certPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(clientCertPrivKey)
-	if err != nil {
-		return err
-	}
-
-	certPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivKeyPEM, &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: certPrivKeyPEMBytes,
-	})
-	// Save the file to disk for use by an Emissary client. This should be later used and saved in the db for downloading later.
-	err = utils.SaveFile("emissary-mtls-tcp.key", certPrivKeyPEM.String(), "./emissary_certs_and_key_here")
-	if err != nil {
-		slog.Error(fmt.Sprintf("Error saving x509 keypair for Emissary client to disk: %s", err))
-	}
-
-	serverCert, err := tls.X509KeyPair(certPEM.Bytes(), certPrivKeyPEM.Bytes())
-	if err != nil {
-		return err
-	}
-
-	certpool := x509.NewCertPool()
-	certpool.AppendCertsFromPEM(certPEM.Bytes())
-	c.ClientTLSConfig.Certificates = append(c.ClientTLSConfig.Certificates, serverCert)
 
 	return nil
 }
