@@ -1,5 +1,6 @@
 # Drawbridge
 ![Drawbridge Logo](./drawbridge_logo.jpg)
+
 [Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications-%E2%80%90-v0.1.0%E2%80%90alpha)
 
 ## The state of self-hosting 
