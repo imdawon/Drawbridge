@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,7 +20,6 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
-	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 )
 
@@ -32,8 +32,10 @@ type Controller struct {
 }
 
 func (f *Controller) SetUp(hostAndPort string) error {
-	slog.Info(fmt.Sprintf("Starting frontend api service on %s", hostAndPort))
+	slog.Info(fmt.Sprintf("Starting frontend api service on %s. Launching in default web browser...", hostAndPort))
 
+	// Launch the Drawbridge Dashboard in the default browser.
+	exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:3000").Start()
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
@@ -131,11 +133,14 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	r.Delete("/service/{id}/delete", f.handleDeleteService)
 
 	r.Get("/service/{id}", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		idString := vars["id"]
+		idString := chi.URLParam(r, "id")
+		if idString == "" {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "Unable to get service with a blank id")
+		}
 		id, err := strconv.Atoi(idString)
 		if err != nil {
-			log.Fatal("Error converting id string to int")
+			log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 		}
 
 		service, err := persistence.Services.GetServiceById(int64(id))
@@ -181,11 +186,14 @@ func (f *Controller) SetUp(hostAndPort string) error {
 }
 
 func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idString := vars["id"]
+	idString := chi.URLParam(r, "id")
+	if idString == "" {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Unable to get service with a blank id")
+	}
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		log.Fatal("Error converting id string to int")
+		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 
 	service, err := persistence.Services.GetServiceById(int64(id))
@@ -196,11 +204,14 @@ func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idString := vars["id"]
+	idString := chi.URLParam(r, "id")
+	if idString == "" {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Unable to edit service with a blank id")
+	}
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		log.Fatal("Error converting id string to int")
+		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 
 	r.ParseForm()
@@ -219,11 +230,14 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idString := vars["id"]
+	idString := chi.URLParam(r, "id")
+	if idString == "" {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Unable to delete service with a blank id")
+	}
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		log.Fatal("Error converting id string to int")
+		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 	err = persistence.Services.DeleteService(id)
 	if err != nil {
