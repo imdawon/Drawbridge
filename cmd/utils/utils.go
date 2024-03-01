@@ -22,7 +22,7 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	if _, err := os.Stat(relativePath); errors.Is(err, os.ErrNotExist) {
 		err := os.Mkdir(relativePath, os.ModePerm)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Error creating file on path %s/%s: %s", relativePath, fileName, err)
 		}
 	}
 

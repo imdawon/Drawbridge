@@ -4,9 +4,8 @@ import (
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
+	"dhens/drawbridge/cmd/drawbridge/types"
 	flagger "dhens/drawbridge/cmd/flags"
-	proxy "dhens/drawbridge/cmd/reverse_proxy"
-	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"dhens/drawbridge/cmd/utils"
 	"fmt"
 	"log"
@@ -29,26 +28,11 @@ import (
 var decoder = schema.NewDecoder()
 
 type Controller struct {
-	Sql *persistence.SQLiteRepository
-	CA  *certificates.CA
+	DrawbridgeAPI *drawbridge.Drawbridge
 }
 
-func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
+func (f *Controller) SetUp(hostAndPort string) error {
 	slog.Info(fmt.Sprintf("Starting frontend api service on %s", hostAndPort))
-
-	services, err := f.Sql.GetAllServices()
-	if err != nil {
-		log.Fatalf("Could not get all services: %s", err)
-	}
-	// Start listener for all Protected Services
-	for i, service := range services {
-		// We only support 1 service at a time for now.
-		// This will change once we manage our goroutines which run the tcp / udp proxy servers.
-		if i > 1 {
-			break
-		}
-		go proxy.SetUpProtectedServiceTunnel(service, ca)
-	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -93,6 +77,10 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
 		}
+
+		// Now that have a listening address we can generate our certificate authority and start our other
+		// services that require the CA to operate, like the mTLS reverse proxy.
+		go f.DrawbridgeAPI.SetUpCAAndDependentServices()
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, fmt.Sprintf("%s:%d", newSettings.ListenerAddress, 3100))
 	})
@@ -109,7 +97,7 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 	})
 
 	r.Get("/admin/get/emissary_auth_files", func(w http.ResponseWriter, r *http.Request) {
-		err := f.CA.CreateEmissaryClientTCPMutualTLSKey("testing")
+		err := f.DrawbridgeAPI.CreateEmissaryClientTCPMutualTLSKey("testing")
 		if err != nil {
 			fmt.Fprintf(w, "Error saving Emissary Certificates and Key to local filesystem.")
 		}
@@ -118,21 +106,22 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 
 	r.Post("/service/create", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		newService := &drawbridge.ProtectedService{}
+		newService := &types.ProtectedService{}
 		decoder.Decode(newService, r.Form)
-		newService, err := f.Sql.CreateNewService(*newService)
+		newService, err := persistence.Services.CreateNewService(*newService)
 		if err != nil {
 			slog.Error("error creatng new service: %w", err)
 		}
 
-		services, err := f.Sql.GetAllServices()
+		services, err := persistence.Services.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
 		templates.GetServices(services).Render(r.Context(), w)
 
 		// Set up tcp reverse proxy that actually carries the client data to the desired service.
-		go proxy.SetUpProtectedServiceTunnel(*newService, ca)
+		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(*newService)
+
 	})
 
 	r.Get("/service/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +138,7 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 			log.Fatal("Error converting id string to int")
 		}
 
-		service, err := f.Sql.GetServiceById(int64(id))
+		service, err := persistence.Services.GetServiceById(int64(id))
 		if err != nil {
 			log.Fatalf("Could not get service: %s", err)
 		}
@@ -161,7 +150,7 @@ func (f *Controller) SetUp(hostAndPort string, ca *certificates.CA) error {
 	})
 
 	r.Get("/services", func(w http.ResponseWriter, r *http.Request) {
-		services, err := f.Sql.GetAllServices()
+		services, err := persistence.Services.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
@@ -199,7 +188,7 @@ func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("Error converting id string to int")
 	}
 
-	service, err := f.Sql.GetServiceById(int64(id))
+	service, err := persistence.Services.GetServiceById(int64(id))
 	if err != nil {
 		log.Fatalf("Could not get service: %s", err)
 	}
@@ -215,14 +204,14 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
-	newService := &drawbridge.ProtectedService{}
+	newService := &types.ProtectedService{}
 	decoder.Decode(newService, r.Form)
 
-	err = f.Sql.UpdateService(newService, int64(id))
+	err = persistence.Services.UpdateService(newService, int64(id))
 	if err != nil {
 		log.Fatalf("Could not update service: %s", err)
 	}
-	services, err := f.Sql.GetAllServices()
+	services, err := persistence.Services.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}
@@ -236,11 +225,11 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		log.Fatal("Error converting id string to int")
 	}
-	err = f.Sql.DeleteService(id)
+	err = persistence.Services.DeleteService(id)
 	if err != nil {
 		log.Fatalf("Could not delete service: %s", err)
 	}
-	services, err := f.Sql.GetAllServices()
+	services, err := persistence.Services.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}
@@ -253,7 +242,7 @@ func FileServer(r chi.Router, path string, root http.FileSystem) {
 	}
 
 	if path != "/" && path[len(path)-1] != '/' {
-		r.Get(path, http.RedirectHandler(path+"/", 301).ServeHTTP)
+		r.Get(path, http.RedirectHandler(path+"/", http.StatusMovedPermanently).ServeHTTP)
 		path += "/"
 	}
 	path += "*"
