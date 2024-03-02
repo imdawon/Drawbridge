@@ -12,7 +12,7 @@ Even if there's none of that, it doesn't really feel like you're sticking it to 
 ## What to do about it
 Emissary and Drawbridge solve this problem. 
 
-Drawbridge is a reverse proxy with configurable authentication and attestation requirements to allow machines running [Emissary desktop client](https://github.com/dhens/Emissary) to access protected services.
+Drawbridge is a reverse proxy with configurable authentication and attestation requirements to allow machines running [Emissary desktop client](https://github.com/dhens/Emissary-Daemon) to access protected services.
 
 Add Emissary to as many of your machines as you want, expose the Drawbridge reverse proxy server with required authentication details, _instead_ of your insecure web application or "movie server", and bam: your service is only accessible from Emissary clients.
 
