@@ -5,7 +5,6 @@ import (
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
-	"dhens/drawbridge/cmd/drawbridge/types"
 	flagger "dhens/drawbridge/cmd/flags"
 	"dhens/drawbridge/cmd/utils"
 	"fmt"
@@ -29,7 +28,8 @@ import (
 var decoder = schema.NewDecoder()
 
 type Controller struct {
-	DrawbridgeAPI *drawbridge.Drawbridge
+	DrawbridgeAPI     *drawbridge.Drawbridge
+	ProtectedServices []drawbridge.ProtectedService
 }
 
 func (f *Controller) SetUp(hostAndPort string) error {
@@ -83,7 +83,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 		// Now that have a listening address we can generate our certificate authority and start our other
 		// services that require the CA to operate, like the mTLS reverse proxy.
-		go f.DrawbridgeAPI.SetUpCAAndDependentServices()
+		go f.DrawbridgeAPI.SetUpCAAndDependentServices(f.ProtectedServices)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, fmt.Sprintf("%s:%d", newSettings.ListenerAddress, 3100))
 	})
@@ -109,9 +109,9 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	r.Post("/service/create", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		newService := &types.ProtectedService{}
-		decoder.Decode(newService, r.Form)
-		newService, err := persistence.Services.CreateNewService(*newService)
+		newService := drawbridge.ProtectedService{}
+		decoder.Decode(&newService, r.Form)
+		newServiceWithId, err := persistence.Services.CreateNewService(newService)
 		if err != nil {
 			slog.Error("error creatng new service: %w", err)
 		}
@@ -124,7 +124,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 		// Set up tcp reverse proxy that actually carries the client data to the desired service.
 		ctx, cancel := context.WithCancel(context.Background())
-		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newService)
+		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newServiceWithId)
 
 	})
 
@@ -217,7 +217,7 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
-	newService := &types.ProtectedService{}
+	newService := &drawbridge.ProtectedService{}
 	decoder.Decode(newService, r.Form)
 
 	err = persistence.Services.UpdateService(newService, int64(id))

@@ -9,9 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"dhens/drawbridge/cmd/drawbridge/emissary"
-	"dhens/drawbridge/cmd/drawbridge/persistence"
-	"dhens/drawbridge/cmd/drawbridge/types"
+	"dhens/drawbridge/cmd/drawbridge/emissary/authorization"
 	flagger "dhens/drawbridge/cmd/flags"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"dhens/drawbridge/cmd/utils"
@@ -31,8 +29,6 @@ type Settings struct {
 	ListenerAddress string `schema:"listener-address"`
 }
 
-type ProtectedServiceID int64
-
 // Used by the frontend controller to execute Drawbridge functions.
 // ProtectedServices contains a map of listeners running for each Protected Service.
 // The int key is the ID of the service as stored in the database.
@@ -44,6 +40,18 @@ type Drawbridge struct {
 type RunningProtectedService struct {
 	Name     string
 	Listener net.Listener
+}
+
+// A service that Drawbridge will protect by only allowing access from authorized machines running the Emissary client.
+// In the future, a Client Policy can be assigned to a Protected Service, allowing for different requirements for different Protected Services.
+type ProtectedService struct {
+	ID                  int64
+	Name                string               `schema:"service-name" json:"service-name"`
+	Description         string               `schema:"service-description" json:"service-description"`
+	Host                string               `schema:"service-host" json:"service-host"`
+	Port                uint16               `schema:"service-port" json:"service-port"`
+	ClientPolicyID      int64                `schema:"service-policy-id,omitempty" json:"service-policy-id,omitempty"`
+	AuthorizationPolicy authorization.Policy `schema:"authorization-policy,omitempty" json:"authorization-policy,omitempty"`
 }
 
 // When a request comes to our Emissary client api, this function verifies that the body matches the
@@ -59,7 +67,7 @@ func (d *Drawbridge) handleClientAuthorizationRequest(w http.ResponseWriter, req
 		fmt.Fprintf(w, "server error!")
 	}
 
-	clientAuth := emissary.AuthorizationRequest{}
+	clientAuth := authorization.EmissaryRequest{}
 	err = json.Unmarshal(body, &clientAuth)
 	if err != nil {
 		log.Fatalf("error unmarshalling client auth request: %s", err)
@@ -67,7 +75,7 @@ func (d *Drawbridge) handleClientAuthorizationRequest(w http.ResponseWriter, req
 		fmt.Fprintf(w, "server error!")
 	}
 
-	clientIsAuthorized := emissary.TestAuthorizationPolicy.ClientIsAuthorized(clientAuth)
+	clientIsAuthorized := authorization.TestPolicy.ClientIsAuthorized(clientAuth)
 	if clientIsAuthorized {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "client auth success!")
@@ -95,7 +103,7 @@ func (d *Drawbridge) SetUpEmissaryAPI(hostAndPort string) {
 	log.Fatalf("Error starting Emissary API server: %s", server.ListenAndServeTLS("", ""))
 }
 
-func (d *Drawbridge) SetUpCAAndDependentServices() {
+func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []ProtectedService) {
 	certificates.CertificateAuthority = &certificates.CA{}
 	err := certificates.CertificateAuthority.SetupCertificates()
 	if err != nil {
@@ -105,12 +113,8 @@ func (d *Drawbridge) SetUpCAAndDependentServices() {
 	d.CA = certificates.CertificateAuthority
 
 	// Start TCP and UDP listeners for each Drawbridge Protected Service.
-	services, err := persistence.Services.GetAllServices()
-	if err != nil {
-		log.Fatalf("Could not get all services: %s", err)
-	}
 	// Start listener for all Protected Services
-	for i, service := range services {
+	for i, service := range protectedServices {
 		// We only support 1 service at a time for now.
 		// This will change once we manage our goroutines which run the tcp / udp proxy servers.
 		if i > 1 {
@@ -217,7 +221,7 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string) error 
 // 1. Created in the dash
 // 2. Loaded from disk during Drawbridge startup
 // This function call sets up a tcp server, and each Protected Service gets its own tcp server.
-func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService types.ProtectedService) error {
+func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService ProtectedService) error {
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
 	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, "0.0.0.0:3100"))
@@ -273,11 +277,11 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel con
 }
 
 // Stop the TCP listener and the goroutines handling any active client connections.
-func (d *Drawbridge) StopRunningProtectedService(id int64) error {
-	serviceName := d.ProtectedServices[id].Name
+func (d *Drawbridge) StopRunningProtectedService(serviceId int64) error {
+	serviceName := d.ProtectedServices[serviceId].Name
 	slog.Info(fmt.Sprintf("Shutting down the \"%s\" Protected Service", serviceName))
-	d.ProtectedServices[id].Listener.Close()
-	delete(d.ProtectedServices, id)
+	d.ProtectedServices[serviceId].Listener.Close()
+	delete(d.ProtectedServices, serviceId)
 	slog.Info(fmt.Sprintf("\"%s\" Protected Service has been shut down successfully", serviceName))
 	return nil
 }
