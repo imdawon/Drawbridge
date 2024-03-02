@@ -1,7 +1,7 @@
 # Drawbridge
 ![Drawbridge Logo](./drawbridge_logo.jpg)
 
-[Click here to quickly set up Drawbridge and Emissary]([](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications))
+[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications)
 
 ## The state of self-hosting 
 Self-hosting is a nightmare. If you're naive, you blow a hole in your home router to allow access to whatever resource you want to have accessible via the internet. 
