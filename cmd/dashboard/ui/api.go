@@ -134,7 +134,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	r.Delete("/service/{id}/delete", f.handleDeleteService)
 
-	r.Get("/service/{id}", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/service/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
 		idString := chi.URLParam(r, "id")
 		if idString == "" {
 			w.WriteHeader(http.StatusNotFound)
@@ -149,12 +149,10 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		if err != nil {
 			log.Fatalf("Could not get service: %s", err)
 		}
-		templates.EditServices(service).Render(r.Context(), w)
+		templates.EditService(service).Render(r.Context(), w)
 	})
 
-	r.Get("/service/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
-		f.handleEditService(w, r)
-	})
+	r.Patch("/service/{id}/edit", f.handleEditService)
 
 	r.Get("/services", func(w http.ResponseWriter, r *http.Request) {
 		services, err := persistence.Services.GetAllServices()
@@ -219,11 +217,29 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	newService := &drawbridge.ProtectedService{}
 	decoder.Decode(newService, r.Form)
+	newService.ID = int64(id)
 
 	err = persistence.Services.UpdateService(newService, int64(id))
 	if err != nil {
 		log.Fatalf("Could not update service: %s", err)
 	}
+
+	// Close down old listener and start a new one in case the port or host has changed.
+	// TODO
+	// We should come up with a better way to identify which fields are changing and aren't changing
+	// so we don't stop and start a listener if only the name or description fields have changed.
+	err = f.DrawbridgeAPI.StopRunningProtectedService(int64(id))
+	if err != nil {
+		log.Fatalf("Could not stop Protected Service after it was edited by the Drawbridge admin: %s", err)
+	}
+	// TODO
+	// replace this with a function
+	ctx, cancel := context.WithCancel(context.Background())
+	go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newService)
+	if err != nil {
+		log.Fatalf("Failed to start Protected Service after it was edited by a Drawbridge admin: %s", err)
+	}
+	slog.Info("Protected Service has been brought back online!")
 	services, err := persistence.Services.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
