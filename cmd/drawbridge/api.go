@@ -31,9 +31,19 @@ type Settings struct {
 	ListenerAddress string `schema:"listener-address"`
 }
 
+type ProtectedServiceID int64
+
 // Used by the frontend controller to execute Drawbridge functions.
+// ProtectedServices contains a map of listeners running for each Protected Service.
+// The int key is the ID of the service as stored in the database.
 type Drawbridge struct {
-	CA *certificates.CA
+	CA                *certificates.CA
+	ProtectedServices map[int64]RunningProtectedService
+}
+
+type RunningProtectedService struct {
+	Name     string
+	Listener net.Listener
 }
 
 // When a request comes to our Emissary client api, this function verifies that the body matches the
@@ -106,7 +116,9 @@ func (d *Drawbridge) SetUpCAAndDependentServices() {
 		if i > 1 {
 			break
 		}
-		go d.SetUpProtectedServiceTunnel(service)
+		// Set up tcp reverse proxy that actually carries the client data to the desired service.
+		ctx, cancel := context.WithCancel(context.Background())
+		go d.SetUpProtectedServiceTunnel(ctx, cancel, service)
 	}
 
 	d.SetUpEmissaryAPI(flagger.FLAGS.BackendAPIHostAndPort)
@@ -205,34 +217,49 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string) error 
 // 1. Created in the dash
 // 2. Loaded from disk during Drawbridge startup
 // This function call sets up a tcp server, and each Protected Service gets its own tcp server.
-func (d *Drawbridge) SetUpProtectedServiceTunnel(protectedService types.ProtectedService) {
+func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService types.ProtectedService) error {
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
 	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, "0.0.0.0:3100"))
 	l, err := tls.Listen("tcp", "0.0.0.0:3100", d.CA.ServerTLSConfig)
+
+	// Save the listener into our ProtectedServices map to close later e.g the Drawbridge admin deletes
+	// the Protected Service.
+	// The context and cancel interface get assigned once a connection has been made with a client below.
+	d.ProtectedServices[protectedService.ID] = RunningProtectedService{
+		Listener: l,
+		Name:     protectedService.Name,
+	}
+
 	if err != nil {
 		slog.Error(fmt.Sprintf("Reverse proxy TCP Listen failed: %s", err))
 	}
 
 	defer l.Close()
 	for {
-		// wait for connection
+		// Wait and accept connections that present a valid mTLS certificate.
 		conn, err := l.Accept()
+		// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
+		// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
 		if err != nil {
-			log.Fatalf("Reverse proxy TCP Accept failed: %s", err)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				return fmt.Errorf("error during listener Accept for Protected Service \"%s\": %s", protectedService.Name, err)
+			}
 		}
 		// Handle new connection in a new go routine.
 		// The loop then returns to accepting, so that
 		// multiple connections may be served concurrently.
 		go func(clientConn net.Conn) {
-			var d net.Dialer
-			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
-
 			// Proxy traffic to the actual service the Emissary client is trying to connect to.
-			resourceConn, err := d.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", protectedService.Host, protectedService.Port))
+			var dialer net.Dialer
+			resourceConn, err := dialer.Dial("tcp", fmt.Sprintf("%s:%d", protectedService.Host, protectedService.Port))
+			// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
+			// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
 			if err != nil {
-				log.Fatalf("Failed to tcp dial to actual target serviec: %v", err)
+				slog.Error("Failed to tcp dial to actual target service", err)
 			}
 
 			slog.Info(fmt.Sprintf("TCP Accept from Emissary client: %s\n", clientConn.RemoteAddr()))
@@ -245,8 +272,12 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel(protectedService types.Protecte
 	}
 }
 
-func (d *Drawbridge) myHandler(w http.ResponseWriter, req *http.Request) {
-	slog.Debug(fmt.Sprintf("New request from %s", req.RemoteAddr))
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "success!")
+// Stop the TCP listener and the goroutines handling any active client connections.
+func (d *Drawbridge) StopRunningProtectedService(id int64) error {
+	serviceName := d.ProtectedServices[id].Name
+	slog.Info(fmt.Sprintf("Shutting down the \"%s\" Protected Service", serviceName))
+	d.ProtectedServices[id].Listener.Close()
+	delete(d.ProtectedServices, id)
+	slog.Info(fmt.Sprintf("\"%s\" Protected Service has been shut down successfully", serviceName))
+	return nil
 }
