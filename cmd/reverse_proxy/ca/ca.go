@@ -67,11 +67,12 @@ func (c *CA) SetupCertificates() (err error) {
 			Certificates: []tls.Certificate{serverCert},
 			ClientCAs:    certpool,
 			ClientAuth:   tls.RequireAndVerifyClientCert,
+			MinVersion:   tls.VersionTLS13,
 		}
-
 		c.ClientTLSConfig = &tls.Config{
 			RootCAs:      certpool,
 			Certificates: []tls.Certificate{serverCert},
+			MinVersion:   tls.VersionTLS13,
 		}
 
 		// Terminate function early as we have all of the cert and key data we need.
