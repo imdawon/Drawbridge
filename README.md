@@ -1,7 +1,7 @@
 # Drawbridge
 ![Drawbridge Logo](./drawbridge_logo.jpg)
 
-[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications-%E2%80%90-v0.1.0%E2%80%90alpha)
+[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications)
 
 ## The state of self-hosting 
 Self-hosting is a nightmare. If you're naive, you blow a hole in your home router to allow access to whatever resource you want to have accessible via the internet. 
@@ -12,11 +12,11 @@ Even if there's none of that, it doesn't really feel like you're sticking it to 
 ## What to do about it
 Emissary and Drawbridge solve this problem. 
 
-Drawbridge is a reverse proxy with configurable authentication and attestation requirements to allow machines running [Emissary desktop client](https://github.com/dhens/Emissary) to access protected services.
+Drawbridge is a reverse proxy with configurable authentication and attestation requirements to allow machines running [Emissary desktop client](https://github.com/dhens/Emissary-Daemon) to access protected services.
 
 Add Emissary to as many of your machines as you want, expose the Drawbridge reverse proxy server with required authentication details, _instead_ of your insecure web application or "movie server", and bam: your service is only accessible from Emissary clients.
 
-[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications-%E2%80%90-v0.1.0%E2%80%90alpha)
+[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications)
 
  ***If things still aren't working, please refer to our Troubleshooting guide.*** (not yet created)
 
@@ -33,14 +33,15 @@ To accomplish this, the following needs to be true:
 
 ### Examples
 
-#### HTTP
-For protecting HTTP resources, the process is very simple. An authorized Emissary client, once it has pulled a Drawbridge configuration that includes an HTTP resource, will provision an mTLS certificate provided by the Drawbridge server. 
+#### HTTP & TCP / UDP Protected Services
+Creating a Protected Service in the Drawbridge dashboard creates a connection between Drawbridge and the service you want to access remotely.
 
-#### TCP / UDP
-If the Drawbridge configuration contains a TCP (SSH, Minecraft Server, etc) or UDP (DNS, VoIP) resource, Emissary will create a local proxy server you will connect to, which will then tunnel your computer traffic through the Drawbridge server.
+A Protected Service can be any networked application listening on a given port, like a Minecraft Server or an HTTP server.
+
+You can then access this Protected Service by connecting to your Drawbridge server through the Emissary client. Emissary will list each service available once connected to Drawbridge and list their IP or domain names to be able to access them.
 
 ## Authentication Process 
-- A Drawbridge server is set up and configured to be accessible from port 443 on an internet-facing IP address.
+- A Drawbridge server is set up and configured to be accessible from port 3100 on an internet-facing IP address.
 - For easiest deployment of Emissary clients, an Emissary 
 - An Emissary user enters the IP or the URI (https://drawbridge.myserver.com) into their client.
   - Emissary will make an http request to fetch the Drawbridge policy
