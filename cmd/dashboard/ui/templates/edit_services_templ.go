@@ -14,7 +14,7 @@ import "strconv"
 import "fmt"
 import "dhens/drawbridge/cmd/drawbridge"
 
-func EditServices(service *drawbridge.ProtectedService) templ.Component {
+func EditService(service *drawbridge.ProtectedService) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -27,7 +27,7 @@ func EditServices(service *drawbridge.ProtectedService) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-put=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-patch=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -35,7 +35,7 @@ func EditServices(service *drawbridge.ProtectedService) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"this\" hx-swap=\"outerHTML\"><label for=\"service-name\">Name</label> <input type=\"text\" id=\"service-name-edit\" name=\"service-name\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-target=\"this\" hx-swap=\"innerHTML\"><label for=\"service-name\">Name</label> <input type=\"text\" id=\"service-name-edit\" name=\"service-name\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

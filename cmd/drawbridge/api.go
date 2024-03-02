@@ -113,14 +113,7 @@ func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []ProtectedSe
 	d.CA = certificates.CertificateAuthority
 
 	// Start TCP and UDP listeners for each Drawbridge Protected Service.
-	// Start listener for all Protected Services
-	for i, service := range protectedServices {
-		// We only support 1 service at a time for now.
-		// This will change once we manage our goroutines which run the tcp / udp proxy servers.
-		if i > 1 {
-			break
-		}
-		// Set up tcp reverse proxy that actually carries the client data to the desired service.
+	for _, service := range protectedServices {
 		ctx, cancel := context.WithCancel(context.Background())
 		go d.SetUpProtectedServiceTunnel(ctx, cancel, service)
 	}
@@ -221,11 +214,12 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string) error 
 // 1. Created in the dash
 // 2. Loaded from disk during Drawbridge startup
 // This function call sets up a tcp server, and each Protected Service gets its own tcp server.
-func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService ProtectedService) error {
+func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService ProtectedService, portOffset int) error {
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
-	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, "0.0.0.0:3100"))
-	l, err := tls.Listen("tcp", "0.0.0.0:3100", d.CA.ServerTLSConfig)
+	addressAndPort := fmt.Sprintf("0.0.0.0:%d", 3000+portOffset)
+	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, addressAndPort))
+	l, err := tls.Listen("tcp", addressAndPort, d.CA.ServerTLSConfig)
 
 	// Save the listener into our ProtectedServices map to close later e.g the Drawbridge admin deletes
 	// the Protected Service.
@@ -278,6 +272,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel con
 
 // Stop the TCP listener and the goroutines handling any active client connections.
 func (d *Drawbridge) StopRunningProtectedService(serviceId int64) error {
+	fmt.Printf("protected service: %+v", d.ProtectedServices[serviceId])
 	serviceName := d.ProtectedServices[serviceId].Name
 	slog.Info(fmt.Sprintf("Shutting down the \"%s\" Protected Service", serviceName))
 	d.ProtectedServices[serviceId].Listener.Close()
