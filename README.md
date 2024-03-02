@@ -33,14 +33,15 @@ To accomplish this, the following needs to be true:
 
 ### Examples
 
-#### HTTP
-For protecting HTTP resources, the process is very simple. An authorized Emissary client, once it has pulled a Drawbridge configuration that includes an HTTP resource, will provision an mTLS certificate provided by the Drawbridge server. 
+#### HTTP & TCP / UDP Protected Services
+Creating a Protected Service in the Drawbridge dashboard creates a connection between Drawbridge and the service you want to access remotely.
 
-#### TCP / UDP
-If the Drawbridge configuration contains a TCP (SSH, Minecraft Server, etc) or UDP (DNS, VoIP) resource, Emissary will create a local proxy server you will connect to, which will then tunnel your computer traffic through the Drawbridge server.
+A Protected Service can be any networked application listening on a given port, like a Minecraft Server or an HTTP server.
+
+You can then access this Protected Service by connecting to your Drawbridge server through the Emissary client. Emissary will list each service available once connected to Drawbridge and list their IP or domain names to be able to access them.
 
 ## Authentication Process 
-- A Drawbridge server is set up and configured to be accessible from port 443 on an internet-facing IP address.
+- A Drawbridge server is set up and configured to be accessible from port 3100 on an internet-facing IP address.
 - For easiest deployment of Emissary clients, an Emissary 
 - An Emissary user enters the IP or the URI (https://drawbridge.myserver.com) into their client.
   - Emissary will make an http request to fetch the Drawbridge policy
