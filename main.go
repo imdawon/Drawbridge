@@ -45,7 +45,9 @@ func main() {
 		log.Fatalf("Error running db migration: %s", err)
 	}
 
-	drawbridgeAPI := &drawbridge.Drawbridge{}
+	drawbridgeAPI := &drawbridge.Drawbridge{
+		ProtectedServices: make(map[int64]drawbridge.RunningProtectedService, 0),
+	}
 
 	// Onboarding configuration has been complete and we can load all existing config files and start servers.
 	// Otherwise, we set up the certificate authority and dependent servers once the user submits

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
@@ -122,7 +123,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		templates.GetServices(services).Render(r.Context(), w)
 
 		// Set up tcp reverse proxy that actually carries the client data to the desired service.
-		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(*newService)
+		ctx, cancel := context.WithCancel(context.Background())
+		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newService)
 
 	})
 
@@ -241,7 +243,13 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	}
 	err = persistence.Services.DeleteService(id)
 	if err != nil {
-		log.Fatalf("Could not delete service: %s", err)
+		log.Fatalf("Could not delete service from database: %s", err)
+		// TODO
+		// render error deleting service template here.
+	}
+	err = f.DrawbridgeAPI.StopRunningProtectedService(int64(id))
+	if err != nil {
+		slog.Error(err.Error())
 	}
 	services, err := persistence.Services.GetAllServices()
 	if err != nil {
