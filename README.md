@@ -1,5 +1,8 @@
 # Drawbridge
 ![Drawbridge Logo](./drawbridge_logo.jpg)
+
+[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications-%E2%80%90-v0.1.0%E2%80%90alpha)
+
 ## The state of self-hosting 
 Self-hosting is a nightmare. If you're naive, you blow a hole in your home router to allow access to whatever resource you want to have accessible via the internet. 
 
@@ -15,13 +18,13 @@ Add Emissary to as many of your machines as you want, expose the Drawbridge reve
 
 [Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications-%E2%80%90-v0.1.0%E2%80%90alpha)
 
- ***If things still aren't working, please refer to our Troubleshooting guide.***
+ ***If things still aren't working, please refer to our Troubleshooting guide.*** (not yet created)
 
 ## Goals
 The goal of the Emissary / Drawbridge solution is rapidly and easily exposing a self-hosted service to the internet for access by authorized clients.
 
 While we want simplicity out of the box, that is not to say that you cannot enforce stricter policies for required clients. More features in the future will support additional identity requirements, but will require an admin to conduct additioal configuration of Drawbridge for such services.
-**Note**: Currently, to ensure a high level of security, each initial connection to a Drawbridge server must be Accepted or Denied by the Drawbridge admin.
+~~**Note**: Currently, to ensure a high level of security, each initial connection to a Drawbridge server must be Accepted or Denied by the Drawbridge admin.~~ (not yet implemented)
 
 To accomplish this, the following needs to be true:
 - No requirement to configure TLS certificates for the Drawbridge server if using a domain name.
@@ -34,8 +37,7 @@ To accomplish this, the following needs to be true:
 For protecting HTTP resources, the process is very simple. An authorized Emissary client, once it has pulled a Drawbridge configuration that includes an HTTP resource, will provision an mTLS certificate provided by the Drawbridge server. 
 
 #### TCP / UDP
-If the Drawbridge configuration contains a TCP (SSH, Minecraft Server, etc) or UDP (DNS, VoIP) resource, Emissary will create a local proxy server, which will then tunnel your computer traffic through the Drawbridge server. 
-On Windows, this connection is made transparent to the user by modifying the Windows Proxy settings.
+If the Drawbridge configuration contains a TCP (SSH, Minecraft Server, etc) or UDP (DNS, VoIP) resource, Emissary will create a local proxy server you will connect to, which will then tunnel your computer traffic through the Drawbridge server.
 
 ## Authentication Process 
 - A Drawbridge server is set up and configured to be accessible from port 443 on an internet-facing IP address.
