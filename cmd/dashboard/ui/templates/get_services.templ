@@ -2,9 +2,9 @@ package templates
 
 import "strconv"
 import "fmt"
-import "dhens/drawbridge/cmd/drawbridge/types"
+import "dhens/drawbridge/cmd/drawbridge"
 
-templ GetServices(services []types.ProtectedService) {
+templ GetServices(services []drawbridge.ProtectedService) {
     if len(services) == 0 {
         <p>Nothing here yet</p>
     } else {

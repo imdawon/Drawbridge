@@ -52,12 +52,18 @@ func main() {
 	// Onboarding configuration has been complete and we can load all existing config files and start servers.
 	// Otherwise, we set up the certificate authority and dependent servers once the user submits
 	// their listening address via the onboarding popup modal, which POSTs to /admin/post/config.
+	services, err := persistence.Services.GetAllServices()
+	if err != nil {
+		log.Fatalf("Could not get all services: %s", err)
+	}
+
 	if utils.FileExists("config/listening_address.txt") {
-		go drawbridgeAPI.SetUpCAAndDependentServices()
+		go drawbridgeAPI.SetUpCAAndDependentServices(services)
 	}
 
 	frontendController := ui.Controller{
-		DrawbridgeAPI: drawbridgeAPI,
+		DrawbridgeAPI:     drawbridgeAPI,
+		ProtectedServices: services,
 	}
 
 	// Set up templ controller used to return hypermedia to our htmx frontend.
