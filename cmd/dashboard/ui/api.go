@@ -33,7 +33,7 @@ type Controller struct {
 }
 
 func (f *Controller) SetUp(hostAndPort string) error {
-	slog.Info(fmt.Sprintf("Starting frontend api service on %s. Launching in default web browser...", hostAndPort))
+	slog.Info(fmt.Sprintf("Starting frontend api service on http://%s. Launching in default web browser...", hostAndPort))
 
 	// Launch the Drawbridge Dashboard in the default browser.
 	exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:3000").Start()
@@ -124,7 +124,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 		// Set up tcp reverse proxy that actually carries the client data to the desired service.
 		ctx, cancel := context.WithCancel(context.Background())
-		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newServiceWithId)
+		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newServiceWithId, nil)
 
 	})
 
@@ -235,7 +235,7 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	// TODO
 	// replace this with a function
 	ctx, cancel := context.WithCancel(context.Background())
-	go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newService)
+	go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newService, nil)
 	if err != nil {
 		log.Fatalf("Failed to start Protected Service after it was edited by a Drawbridge admin: %s", err)
 	}
