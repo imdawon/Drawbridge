@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -97,7 +98,7 @@ func (d *Drawbridge) SetUpEmissaryAPI(hostAndPort string) {
 		Addr:      hostAndPort,
 		Handler:   r,
 	}
-	slog.Info(fmt.Sprintf("Starting Emissary API server on %s", server.Addr))
+	slog.Info(fmt.Sprintf("Starting Emissary API server on http://%s", server.Addr))
 
 	// We pass "" into listen and serve since we have already configured cert and keyfile for server.
 	log.Fatalf("Error starting Emissary API server: %s", server.ListenAndServeTLS("", ""))
@@ -113,9 +114,12 @@ func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []ProtectedSe
 	d.CA = certificates.CertificateAuthority
 
 	// Start TCP and UDP listeners for each Drawbridge Protected Service.
+	var wg sync.WaitGroup
 	for _, service := range protectedServices {
+		wg.Add(1)
 		ctx, cancel := context.WithCancel(context.Background())
-		go d.SetUpProtectedServiceTunnel(ctx, cancel, service)
+		go d.SetUpProtectedServiceTunnel(ctx, cancel, service, &wg)
+		wg.Wait()
 	}
 
 	d.SetUpEmissaryAPI(flagger.FLAGS.BackendAPIHostAndPort)
@@ -214,10 +218,12 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string) error 
 // 1. Created in the dash
 // 2. Loaded from disk during Drawbridge startup
 // This function call sets up a tcp server, and each Protected Service gets its own tcp server.
-func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService ProtectedService, portOffset int) error {
+func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService ProtectedService, wg *sync.WaitGroup) error {
+	// We offset the port number from 3000 by the number of services, so if there are 2 services, the port will be 3002.
+	port := 3100 + len(d.ProtectedServices)
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
-	addressAndPort := fmt.Sprintf("0.0.0.0:%d", 3000+portOffset)
+	addressAndPort := fmt.Sprintf("localhost:%d", port)
 	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, addressAndPort))
 	l, err := tls.Listen("tcp", addressAndPort, d.CA.ServerTLSConfig)
 
@@ -234,6 +240,9 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel con
 	}
 
 	defer l.Close()
+	if wg != nil {
+		wg.Done()
+	}
 	for {
 		// Wait and accept connections that present a valid mTLS certificate.
 		conn, err := l.Accept()
