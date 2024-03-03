@@ -136,7 +136,7 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string) error 
 	clientCert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		// TODO: Must be domain name or IP during user dash setup
-		DNSNames: []string{listeningAddress},
+		DNSNames: []string{listeningAddress, "localhost"},
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},

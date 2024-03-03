@@ -88,7 +88,7 @@ func (c *CA) SetupCertificates() (err error) {
 	// CA Cert, Server Cert, and Server key do not exist yet. We will generate them now, and save them to disk for reuse.
 	// 1. Set up our CA certificate
 	ca := x509.Certificate{
-		DNSNames:     []string{listeningAddress},
+		DNSNames:     []string{listeningAddress, "localhost"},
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
@@ -161,7 +161,7 @@ func (c *CA) SetupCertificates() (err error) {
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		// TODO: Must be domain name or IP during user dash setup
-		DNSNames: []string{listeningAddress},
+		DNSNames: []string{listeningAddress, "localhost"},
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},
