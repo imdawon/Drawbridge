@@ -223,7 +223,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel con
 	port := 3100 + len(d.ProtectedServices)
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
-	addressAndPort := fmt.Sprintf("localhost:%d", port)
+	addressAndPort := fmt.Sprintf("0.0.0.0:%d", port)
 	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, addressAndPort))
 	l, err := tls.Listen("tcp", addressAndPort, d.CA.ServerTLSConfig)
 
