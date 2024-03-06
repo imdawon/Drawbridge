@@ -5,3 +5,5 @@
 *.key
 emissary_certs_and_key_here/
 config/
+.DS_STORE
+release/
