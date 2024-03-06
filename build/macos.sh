@@ -1,1 +1,0 @@
-GOARCH=arm64 GOOS=darwin go build -o ./release/Drawbridge -ldflags="-s -w" .

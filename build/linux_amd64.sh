@@ -1,0 +1,1 @@
+GOARCH=amd64 GOOS=linux go build -o release/Drawbridge_linux_amd64 -ldflags="-s -w" .
