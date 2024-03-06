@@ -73,6 +73,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		if newSettings.ListenerAddress == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "<span class=\"error-response\">Listening address is blank! Please try again.<span>")
+		} else if newSettings.ListenerAddress == "localhost" {
+			newSettings.ListenerAddress = "127.0.0.1"
 		}
 
 		err := utils.SaveFile("listening_address.txt", newSettings.ListenerAddress, "config")
