@@ -35,7 +35,7 @@ type Controller struct {
 func (f *Controller) SetUp(hostAndPort string) error {
 	slog.Info(fmt.Sprintf("Starting frontend api service on http://%s. Launching in default web browser...", hostAndPort))
 
-	// Launch the Drawbridge Dashboard in the default browser.
+	// Launch the Drawbridge Dashboard in the default browser for Windows.
 	exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:3000").Start()
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -113,6 +113,11 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		r.ParseForm()
 		newService := drawbridge.ProtectedService{}
 		decoder.Decode(&newService, r.Form)
+		// Rewrite a host input from the Drawbridge admin so we don't get errors trying to parse
+		// the "localhost" string as a net.IP.
+		if newService.Host == "localhost" {
+			newService.Host = "127.0.0.1"
+		}
 		newServiceWithId, err := persistence.Services.CreateNewService(newService)
 		if err != nil {
 			slog.Error("error creatng new service: %w", err)
