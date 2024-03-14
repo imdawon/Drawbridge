@@ -5,7 +5,7 @@ import "fmt"
 import "dhens/drawbridge/cmd/drawbridge"
 
 templ EditService(service *drawbridge.ProtectedService) {
-    <form hx-patch={ fmt.Sprintf("/service/%d/edit",service.ID) } hx-target="this" hx-swap="innerHTML">
+    <form hx-patch={ fmt.Sprintf("/service/%d/edit",service.ID) } hx-target="#protected-services-list" hx-swap="innerHTML">
         <label for="service-name">Name</label>
         <input type="text" id="service-name-edit" name="service-name" value={ service.Name }/>
         <label for="service-name">Host</label>
