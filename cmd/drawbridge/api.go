@@ -2,7 +2,6 @@ package drawbridge
 
 import (
 	"bytes"
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -22,7 +21,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"sync"
+	"strings"
 	"time"
 )
 
@@ -39,8 +38,7 @@ type Drawbridge struct {
 }
 
 type RunningProtectedService struct {
-	Name     string
-	Listener net.Listener
+	Service ProtectedService
 }
 
 // A service that Drawbridge will protect by only allowing access from authorized machines running the Emissary client.
@@ -114,13 +112,11 @@ func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []ProtectedSe
 	d.CA = certificates.CertificateAuthority
 
 	// Start TCP and UDP listeners for each Drawbridge Protected Service.
-	var wg sync.WaitGroup
 	for _, service := range protectedServices {
-		wg.Add(1)
-		ctx, cancel := context.WithCancel(context.Background())
-		go d.SetUpProtectedServiceTunnel(ctx, cancel, service, &wg)
-		wg.Wait()
+		d.AddNewProtectedService(service)
 	}
+
+	go d.SetUpProtectedServiceTunnel()
 
 	d.SetUpEmissaryAPI(flagger.FLAGS.BackendAPIHostAndPort)
 }
@@ -213,78 +209,108 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string) error 
 	return nil
 }
 
-// This function will be called Whenever a new Protected Service is:
-// 1. Created in the dash
-// 2. Loaded from disk during Drawbridge startup
-// This function call sets up a tcp server, and each Protected Service gets its own tcp server.
-func (d *Drawbridge) SetUpProtectedServiceTunnel(ctx context.Context, cancel context.CancelFunc, protectedService ProtectedService, wg *sync.WaitGroup) error {
-	// We offset the port number from 3000 by the number of services, so if there are 2 services, the port will be 3002.
-	port := 3100 + len(d.ProtectedServices)
+func (d *Drawbridge) AddNewProtectedService(protectedService ProtectedService) error {
+	d.ProtectedServices[protectedService.ID] = RunningProtectedService{
+		Service: protectedService,
+	}
+	return nil
+}
+
+func (d *Drawbridge) StopRunningProtectedService(id int64) {
+	delete(d.ProtectedServices, id)
+}
+
+// This is the service the Emissary client connects to when it wants to access a Protected Service.
+// It needs to take the Emissary connection and route it to the proper Protected Service.
+func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
-	addressAndPort := fmt.Sprintf("0.0.0.0:%d", port)
-	slog.Info(fmt.Sprintf("Starting tunnel for Protected Service \"%s\". Emissary clients can reach this service at %s", protectedService.Name, addressAndPort))
+	addressAndPortBytes := utils.ReadFile("config/listening_address.txt")
+	addressAndPort := fmt.Sprintf("%s:3100", string(*addressAndPortBytes))
+	slog.Info(fmt.Sprintf("Starting Drawbridge reverse proxy tunnel. Emissary clients can reach Drawbridge at %s", addressAndPort))
 	l, err := tls.Listen("tcp", addressAndPort, d.CA.ServerTLSConfig)
-
-	// Save the listener into our ProtectedServices map to close later e.g the Drawbridge admin deletes
-	// the Protected Service.
-	// The context and cancel interface get assigned once a connection has been made with a client below.
-	d.ProtectedServices[protectedService.ID] = RunningProtectedService{
-		Listener: l,
-		Name:     protectedService.Name,
-	}
 
 	if err != nil {
 		slog.Error(fmt.Sprintf("Reverse proxy TCP Listen failed: %s", err))
 	}
 
 	defer l.Close()
-	if wg != nil {
-		wg.Done()
-	}
+
 	for {
 		// Wait and accept connections that present a valid mTLS certificate.
-		conn, err := l.Accept()
-		// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
-		// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-				return fmt.Errorf("error during listener Accept for Protected Service \"%s\": %s", protectedService.Name, err)
-			}
-		}
+		conn, _ := l.Accept()
+
 		// Handle new connection in a new go routine.
 		// The loop then returns to accepting, so that
 		// multiple connections may be served concurrently.
 		go func(clientConn net.Conn) {
-			// Proxy traffic to the actual service the Emissary client is trying to connect to.
-			var dialer net.Dialer
-			resourceConn, err := dialer.Dial("tcp", fmt.Sprintf("%s:%d", protectedService.Host, protectedService.Port))
-			// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
-			// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
+			// Read incoming data
+			buf := make([]byte, 256)
+			_, err := conn.Read(buf)
 			if err != nil {
-				slog.Error("Failed to tcp dial to actual target service", err)
+				fmt.Println(err)
+				return
 			}
+			buf = bytes.Trim(buf, "\x00")
+			// Print the incoming data - for debugging
+			fmt.Printf("Received: %s\n", buf)
 
-			slog.Info(fmt.Sprintf("TCP Accept from Emissary client: %s\n", clientConn.RemoteAddr()))
-			// Copy data back and from client and server.
-			go io.Copy(resourceConn, clientConn)
-			io.Copy(clientConn, resourceConn)
-			// Shut down the connection.
-			clientConn.Close()
+			var emissaryRequestValue string
+			emissaryRequestPayload := string(buf[:])
+			if strings.Contains(emissaryRequestPayload, "PS_CONN") {
+				emissaryRequestValue = strings.TrimPrefix(emissaryRequestPayload, "PS_CONN")
+				emissaryRequestValue = strings.TrimSpace(emissaryRequestValue)
+				emissaryRequestValue = strings.TrimSpace(emissaryRequestValue)
+				// May be used later after we standardize how and when to read the tcp connection into the buf above.
+				// d.getRequestProtectedServiceName(clientConn)
+
+				requestedServiceAddress := d.getProtectedServiceAddressByName(emissaryRequestValue)
+
+				// Proxy traffic to the actual service the Emissary client is trying to connect to.
+				var dialer net.Dialer
+				resourceConn, err := dialer.Dial("tcp", requestedServiceAddress)
+				// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
+				// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
+				if err != nil {
+					slog.Error("Failed to tcp dial to actual target service", err)
+				}
+
+				slog.Info(fmt.Sprintf("TCP Accept from Emissary client: %s\n", clientConn.RemoteAddr()))
+				// Copy data back and from client and server.
+				go io.Copy(resourceConn, clientConn)
+				io.Copy(clientConn, resourceConn)
+				// Shut down the connection.
+				clientConn.Close()
+
+			} else {
+				// On a new connection, write available services to TCP connection so Emissary can know which
+				// d.ProtectedServices
+				var serviceList string
+				for _, value := range d.ProtectedServices {
+					serviceList += fmt.Sprintf("%s,", value.Service.Name)
+				}
+				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s", serviceList)
+				clientConn.Write([]byte(serviceConnectCommand))
+			}
 		}(conn)
 	}
 }
 
-// Stop the TCP listener and the goroutines handling any active client connections.
-func (d *Drawbridge) StopRunningProtectedService(serviceId int64) error {
-	fmt.Printf("protected service: %+v", d.ProtectedServices[serviceId])
-	serviceName := d.ProtectedServices[serviceId].Name
-	slog.Info(fmt.Sprintf("Shutting down the \"%s\" Protected Service", serviceName))
-	d.ProtectedServices[serviceId].Listener.Close()
-	delete(d.ProtectedServices, serviceId)
-	slog.Info(fmt.Sprintf("\"%s\" Protected Service has been shut down successfully", serviceName))
-	return nil
+func (d *Drawbridge) getRequestProtectedServiceName(clientConn net.Conn) (string, error) {
+	bytes, err := io.ReadAll(io.LimitReader(clientConn, 64))
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes[:]), nil
+}
+
+func (d *Drawbridge) getProtectedServiceAddressByName(protectedServiceName string) string {
+	for _, service := range d.ProtectedServices {
+		if service.Service.Name == protectedServiceName {
+			protectedService := d.ProtectedServices[service.Service.ID]
+			return fmt.Sprintf("%s:%d", protectedService.Service.Host, protectedService.Service.Port)
+		}
+	}
+	return ""
 }

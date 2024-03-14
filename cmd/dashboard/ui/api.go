@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
@@ -129,9 +128,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		}
 		templates.GetServices(services).Render(r.Context(), w)
 
-		// Set up tcp reverse proxy that actually carries the client data to the desired service.
-		ctx, cancel := context.WithCancel(context.Background())
-		go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newServiceWithId, nil)
+		// Set up tcp reverse proxy that actually carries the client data to the target service.
+		go f.DrawbridgeAPI.AddNewProtectedService(*newServiceWithId)
 
 	})
 
@@ -231,22 +229,10 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Could not update service: %s", err)
 	}
 
-	// Close down old listener and start a new one in case the port or host has changed.
-	// TODO
-	// We should come up with a better way to identify which fields are changing and aren't changing
-	// so we don't stop and start a listener if only the name or description fields have changed.
-	err = f.DrawbridgeAPI.StopRunningProtectedService(int64(id))
-	if err != nil {
-		log.Fatalf("Could not stop Protected Service after it was edited by the Drawbridge admin: %s", err)
-	}
-	// TODO
-	// replace this with a function
-	ctx, cancel := context.WithCancel(context.Background())
-	go f.DrawbridgeAPI.SetUpProtectedServiceTunnel(ctx, cancel, *newService, nil)
+	go f.DrawbridgeAPI.AddNewProtectedService(*newService)
 	if err != nil {
 		log.Fatalf("Failed to start Protected Service after it was edited by a Drawbridge admin: %s", err)
 	}
-	slog.Info("Protected Service has been brought back online!")
 	services, err := persistence.Services.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
@@ -270,7 +256,7 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 		// TODO
 		// render error deleting service template here.
 	}
-	err = f.DrawbridgeAPI.StopRunningProtectedService(int64(id))
+	f.DrawbridgeAPI.StopRunningProtectedService(int64(id))
 	if err != nil {
 		slog.Error(err.Error())
 	}
