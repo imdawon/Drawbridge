@@ -8,6 +8,9 @@ import (
 	"dhens/drawbridge/cmd/utils"
 	"flag"
 	"log"
+	"os"
+	"path"
+	"path/filepath"
 )
 
 func main() {
@@ -38,9 +41,18 @@ func main() {
 	)
 	flag.Parse()
 
+	// Append Drawbridge binary location to sqlite filepath to avoid writing to home directory.
+	// Ensure we are only reading files from our executable and not where the terminal is executing from.
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	execDirPath := path.Dir(execPath)
+	flagger.FLAGS.SqliteFilename = filepath.Join(execDirPath, flagger.FLAGS.SqliteFilename)
+
 	persistence.Services = persistence.NewSQLiteRepository(persistence.OpenDatabaseFile(flagger.FLAGS.SqliteFilename))
 
-	err := persistence.Services.Migrate()
+	err = persistence.Services.Migrate()
 	if err != nil {
 		log.Fatalf("Error running db migration: %s", err)
 	}
