@@ -8,3 +8,4 @@ config/
 .DS_STORE
 release/
 __debug_*
+Drawbridge_*
