@@ -107,6 +107,17 @@ func (c *CA) SetupCertificates() (err error) {
 		BasicConstraintsValid: true,
 	}
 
+	// If we want to listen on all interfaces, we need to add all interface IPs
+	// to the list of acceptable IPs for the Drawbridge CA.
+	if listeningAddress == "0.0.0.0" {
+		ips, err := utils.GetDeviceIPs()
+		if err != nil {
+			return err
+		}
+		ca.IPAddresses = append(ca.IPAddresses, ips...)
+		slog.Debug("IP ADDRESSES for CA: ", ca.IPAddresses)
+	}
+
 	c.CertificateAuthority = &ca
 
 	// Create our private and public key for the Certificate Authority.
@@ -177,6 +188,17 @@ func (c *CA) SetupCertificates() (err error) {
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	// If we want to listen on all interfaces, we need to add all interface IPs
+	// to the list of acceptable IPs for the Drawbridge CA.
+	if listeningAddress == "0.0.0.0" {
+		ips, err := utils.GetDeviceIPs()
+		if err != nil {
+			return err
+		}
+		cert.IPAddresses = append(ca.IPAddresses, ips...)
+		slog.Debug("IP ADDRESSES for server cert: ", ca.IPAddresses)
 	}
 
 	certPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)

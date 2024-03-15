@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 // Save file if it does not already exist.
 func SaveFile(fileName string, fileContents string, relativePath string) error {
+	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
 		log.Fatal(err)
@@ -80,4 +82,34 @@ func ReadFile(pathWithFilename string) *[]byte {
 		return &file
 	}
 	return nil
+}
+
+// Used when we need to add all listening address ips to the certificate authority and server certificate.
+func GetDeviceIPs() ([]net.IP, error) {
+	var ips []net.IP
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			return nil, err
+		}
+
+		// handle err
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			// process IP address
+			ips = append(ips, ip)
+		}
+	}
+	return ips, nil
+
 }
