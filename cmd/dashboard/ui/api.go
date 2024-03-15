@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -173,7 +174,12 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		filesDir := http.Dir(filepath.Join(workDir, "./cmd/dashboard/ui/static"))
 		FileServer(r, "/", filesDir)
 	} else {
-		filesDir := http.Dir(filepath.Join(workDir, "./ui/static"))
+		ex, err := os.Executable()
+		if err != nil {
+			log.Fatal(err)
+		}
+		dir := path.Dir(ex)
+		filesDir := http.Dir(fmt.Sprintf("%s/static", dir))
 		FileServer(r, "/", filesDir)
 	}
 
