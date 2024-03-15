@@ -20,6 +20,16 @@ Add Emissary to as many of your machines as you want, expose the Drawbridge reve
 
  ***If things still aren't working, please refer to our Troubleshooting guide.*** (not yet created)
 
+## Example Use-Case
+
+#### HTTP & TCP / UDP Protected Services
+Creating a Protected Service in the Drawbridge dashboard creates a connection between Drawbridge and the service you want to access remotely.
+
+A Protected Service can be any networked application listening on a given port, like a Minecraft Server or an HTTP server.
+
+You can then access this Protected Service by connecting to your Drawbridge server through the Emissary client. Emissary will list each service available once connected to Drawbridge and list their IP or domain names to be able to access them.
+
+
 ## Goals
 The goal of the Emissary / Drawbridge solution is rapidly and easily exposing a self-hosted service to the internet for access by authorized clients.
 
@@ -30,15 +40,6 @@ To accomplish this, the following needs to be true:
 - No requirement to configure TLS certificates for the Drawbridge server if using a domain name.
 - Drawbridge and Emissary _only_ need eachother in order to provide all features described in this document.
 - No hacky shenangians or end-user technical knowledge to verify a secure session has been created e.g checking certificate hashes or an Emissary user needing to manually configure their host machine.
-
-### Examples
-
-#### HTTP & TCP / UDP Protected Services
-Creating a Protected Service in the Drawbridge dashboard creates a connection between Drawbridge and the service you want to access remotely.
-
-A Protected Service can be any networked application listening on a given port, like a Minecraft Server or an HTTP server.
-
-You can then access this Protected Service by connecting to your Drawbridge server through the Emissary client. Emissary will list each service available once connected to Drawbridge and list their IP or domain names to be able to access them.
 
 ## Authentication Process 
 - A Drawbridge server is set up and configured to be accessible from port 3100 on an internet-facing IP address.
