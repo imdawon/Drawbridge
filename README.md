@@ -1,7 +1,7 @@
 # Drawbridge
 ![Drawbridge Logo](./drawbridge_logo.jpg)
 
-[How to protect your self-hosted servers with Drawbridge in 5 minutes or less](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications)
+[How to protect your self-hosted servers with Drawbridge in 5 minutes or less]([https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications](https://github.com/dhens/Drawbridge/wiki/Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90--Minecraft-Server))
 
 ## The state of self-hosting 
 Self-hosting is a nightmare. If you're naive, you blow a hole in your home router to allow access to whatever resource you want to have accessible via the internet. 
@@ -16,7 +16,7 @@ Drawbridge is a reverse proxy with configurable authentication and attestation r
 
 Add Emissary to as many of your machines as you want, expose the Drawbridge reverse proxy server with required authentication details, _instead_ of your insecure web application or "movie server", and bam: your service is only accessible from Emissary clients.
 
-[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications)
+[Click here to quickly set up Drawbridge and Emissary]([https://github.com/dhens/Drawbridge/wiki/Quick-Start-Up-Guide-%E2%80%90-Get-Drawbridge-and-Emissary-protecting-your-applications](https://github.com/dhens/Drawbridge/wiki/Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90--Minecraft-Server))
 
  ***If things still aren't working, please refer to our Troubleshooting guide.*** (not yet created)
 
