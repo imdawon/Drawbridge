@@ -14,6 +14,7 @@ import (
 	"log"
 	"log/slog"
 	"math/big"
+	"net"
 	"time"
 )
 
@@ -97,7 +98,7 @@ func (c *CA) SetupCertificates() (err error) {
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 		},
-		// IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(listeningAddress)},
+		IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(listeningAddress)},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  true,
@@ -181,7 +182,7 @@ func (c *CA) SetupCertificates() (err error) {
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 		},
-		// IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(listeningAddress)},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(listeningAddress)},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(10, 0, 0),
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
