@@ -228,7 +228,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 	addressAndPortBytes := utils.ReadFile("config/listening_address.txt")
 	addressAndPort := fmt.Sprintf("%s:3100", string(*addressAndPortBytes))
 	slog.Info(fmt.Sprintf("Starting Drawbridge reverse proxy tunnel. Emissary clients can reach Drawbridge at %s", addressAndPort))
-	l, err := tls.Listen("tcp", addressAndPort, d.CA.ServerTLSConfig)
+	l, err := tls.Listen("tcp", "0.0.0.0:3100", d.CA.ServerTLSConfig)
 
 	if err != nil {
 		slog.Error(fmt.Sprintf("Reverse proxy TCP Listen failed: %s", err))
