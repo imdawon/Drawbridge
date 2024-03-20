@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"dhens/drawbridge/cmd/utils"
 	"encoding/pem"
+	"fmt"
 	"log"
 	"log/slog"
 	"math/big"
@@ -85,6 +86,8 @@ func (c *CA) SetupCertificates() (err error) {
 	// can validate the Drawbridge server they are connecting to, is, in fact, the correct one.
 	listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
 	listeningAddress := string(*listeningAddressBytes)
+	isLAN := drawbridgeListeningAddressIsLAN(net.ParseIP(listeningAddress))
+	slog.Debug("Drawbridge listening address type", slog.Bool("isLAN", isLAN))
 	// CA Cert, Server Cert, and Server key do not exist yet. We will generate them now, and save them to disk for reuse.
 	// 1. Set up our CA certificate
 	ca := x509.Certificate{
@@ -107,15 +110,17 @@ func (c *CA) SetupCertificates() (err error) {
 		BasicConstraintsValid: true,
 	}
 
-	// If we want to listen on all interfaces, we need to add all interface IPs
-	// to the list of acceptable IPs for the Drawbridge CA.
-	if listeningAddress == "0.0.0.0" {
+	// Listen on all interfaces if the listening address isn't an IANA private IPv4 address e.g if the user
+	// uses their WAN IP address.
+	// Otherwise we only listen on the LAN address and local loopback network as the user wants.
+	if !isLAN {
 		ips, err := utils.GetDeviceIPs()
 		if err != nil {
 			return err
 		}
 		ca.IPAddresses = append(ca.IPAddresses, ips...)
-		slog.Debug("IP ADDRESSES for CA: ", ca.IPAddresses)
+		slog.Debug("Certificates and Keys", slog.String("CA Allowed IP Addresses", fmt.Sprintf("%s", ca.IPAddresses)))
+
 	}
 
 	c.CertificateAuthority = &ca
@@ -190,15 +195,16 @@ func (c *CA) SetupCertificates() (err error) {
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
 
-	// If we want to listen on all interfaces, we need to add all interface IPs
-	// to the list of acceptable IPs for the Drawbridge CA.
-	if listeningAddress == "0.0.0.0" {
+	// Listen on all interfaces if the listening address isn't an IANA private IPv4 address e.g if the user
+	// uses their WAN IP address.
+	// Otherwise we only listen on the LAN address and local loopback network as the user wants.
+	if !isLAN {
 		ips, err := utils.GetDeviceIPs()
 		if err != nil {
 			return err
 		}
 		cert.IPAddresses = append(ca.IPAddresses, ips...)
-		slog.Debug("IP ADDRESSES for server cert: ", ca.IPAddresses)
+		slog.Debug("Certificates and Keys", slog.String("Server Certificate Allowed IP Addresses", fmt.Sprintf("%s", ca.IPAddresses)))
 	}
 
 	certPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
@@ -256,4 +262,13 @@ func (c *CA) SetupCertificates() (err error) {
 	}
 
 	return nil
+}
+
+// If someone is listening on a LAN address, we don't want to listen on all interfaces like we do if someone uses their
+// public WAN address, for example.
+func drawbridgeListeningAddressIsLAN(listeningAddress net.IP) bool {
+	_, ten, _ := net.ParseCIDR("10.0.0.0/8")
+	_, oneNineTwo, _ := net.ParseCIDR("192.168.0.0/16")
+	_, oneSevenTwo, _ := net.ParseCIDR("192.168.1.0/12")
+	return ten.Contains(listeningAddress) || oneNineTwo.Contains(listeningAddress) || oneSevenTwo.Contains(listeningAddress)
 }
