@@ -25,13 +25,13 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	// Verify the file doesn't exist before opening.
 	_, err = os.Open(fullFilePath)
 	if !errors.Is(err, os.ErrNotExist) {
-		slog.Debug(fmt.Sprintf("SAVE FILE: Skipping existing Drawbridge file: %s", fullFilePath))
+		slog.Debug("File Operation", slog.String("Skipping Existing Drawbridge File", fullFilePath))
 		return nil
 	}
 
 	// Create folder path if it doesn't exist.
 	if _, err := os.Stat(relativePath); errors.Is(err, os.ErrNotExist) {
-		slog.Debug("CREATING FOLDER PATH EXIST?: %s", fullFilePath)
+		slog.Debug("File Operation", slog.String("Create File", fullFilePath))
 
 		err := os.Mkdir(relativePath, os.ModePerm)
 		if err != nil {
@@ -61,7 +61,7 @@ func FileExists(pathWithFilename string) bool {
 	}
 	execDirPath := path.Dir(execPath)
 	fullFilePath := filepath.Join(execDirPath, pathWithFilename)
-	slog.Debug("FILE EXIST?: %s", fullFilePath)
+	slog.Debug("File Operation", slog.String("Check If File Exists", fullFilePath))
 
 	_, err = os.Open(fullFilePath)
 	return !errors.Is(err, os.ErrNotExist)
@@ -75,7 +75,7 @@ func ReadFile(pathWithFilename string) *[]byte {
 	}
 	execDirPath := path.Dir(execPath)
 	fullFilePath := filepath.Join(execDirPath, pathWithFilename)
-	slog.Debug("READING FILE: %s", fullFilePath)
+	slog.Debug("File Operation", slog.String("Read File", fullFilePath))
 
 	file, err := os.ReadFile(fullFilePath)
 	if !errors.Is(err, os.ErrNotExist) {

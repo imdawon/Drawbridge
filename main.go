@@ -8,6 +8,7 @@ import (
 	"dhens/drawbridge/cmd/utils"
 	"flag"
 	"log"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,6 +41,14 @@ func main() {
 		"the environment that Drawbridge is running in (production, development)",
 	)
 	flag.Parse()
+
+	// Show debugger messages in development mode.
+	if flagger.FLAGS.Env == "development" {
+		programLevel := new(slog.LevelVar)
+		programLevel.Set(slog.LevelDebug)
+		h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: programLevel})
+		slog.SetDefault(slog.New(h))
+	}
 
 	// Append Drawbridge binary location to sqlite filepath to avoid writing to home directory.
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
