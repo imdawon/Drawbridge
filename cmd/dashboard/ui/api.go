@@ -126,12 +126,12 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		if newService.Host == "localhost" {
 			newService.Host = "127.0.0.1"
 		}
-		newServiceWithId, err := persistence.Services.CreateNewService(newService)
+		newServiceWithId, err := persistence.Drawbridge.CreateNewService(newService)
 		if err != nil {
 			slog.Error("error creatng new service: %w", err)
 		}
 
-		services, err := persistence.Services.GetAllServices()
+		services, err := persistence.Drawbridge.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
@@ -159,7 +159,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 		}
 
-		service, err := persistence.Services.GetServiceById(int64(id))
+		service, err := persistence.Drawbridge.GetServiceById(int64(id))
 		if err != nil {
 			log.Fatalf("Could not get service: %s", err)
 		}
@@ -169,7 +169,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	r.Patch("/service/{id}/edit", f.handleEditService)
 
 	r.Get("/services", func(w http.ResponseWriter, r *http.Request) {
-		services, err := persistence.Services.GetAllServices()
+		services, err := persistence.Drawbridge.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
@@ -215,7 +215,7 @@ func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 
-	service, err := persistence.Services.GetServiceById(int64(id))
+	service, err := persistence.Drawbridge.GetServiceById(int64(id))
 	if err != nil {
 		log.Fatalf("Could not get service: %s", err)
 	}
@@ -238,7 +238,7 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	decoder.Decode(newService, r.Form)
 	newService.ID = int64(id)
 
-	err = persistence.Services.UpdateService(newService, int64(id))
+	err = persistence.Drawbridge.UpdateService(newService, int64(id))
 	if err != nil {
 		log.Fatalf("Could not update service: %s", err)
 	}
@@ -247,7 +247,7 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("Failed to start Protected Service after it was edited by a Drawbridge admin: %s", err)
 	}
-	services, err := persistence.Services.GetAllServices()
+	services, err := persistence.Drawbridge.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}
@@ -264,7 +264,7 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 	}
-	err = persistence.Services.DeleteService(id)
+	err = persistence.Drawbridge.DeleteService(id)
 	if err != nil {
 		log.Fatalf("Could not delete service from database: %s", err)
 		// TODO
@@ -274,7 +274,7 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	services, err := persistence.Services.GetAllServices()
+	services, err := persistence.Drawbridge.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}

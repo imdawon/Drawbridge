@@ -59,11 +59,19 @@ func main() {
 	execDirPath := path.Dir(execPath)
 	flagger.FLAGS.SqliteFilename = filepath.Join(execDirPath, flagger.FLAGS.SqliteFilename)
 
-	persistence.Services = persistence.NewSQLiteRepository(persistence.OpenDatabaseFile(flagger.FLAGS.SqliteFilename))
-
-	err = persistence.Services.Migrate()
+	// Migrate sqlite tables
+	persistence.Drawbridge = persistence.NewSQLiteRepository(persistence.OpenDatabaseFile(flagger.FLAGS.SqliteFilename))
+	err = persistence.Drawbridge.MigrateServices()
 	if err != nil {
-		log.Fatalf("Error running db migration: %s", err)
+		log.Fatalf("Error running services db migration: %s", err)
+	}
+	err = persistence.Drawbridge.MigrateEmissaryClient()
+	if err != nil {
+		log.Fatalf("Error running emissary_client db migration: %s", err)
+	}
+	err = persistence.Drawbridge.MigrateEmissaryClientEvent()
+	if err != nil {
+		log.Fatalf("Error running emissary_client_event db migration: %s", err)
 	}
 
 	drawbridgeAPI := &drawbridge.Drawbridge{
@@ -73,7 +81,7 @@ func main() {
 	// Onboarding configuration has been complete and we can load all existing config files and start servers.
 	// Otherwise, we set up the certificate authority and dependent servers once the user submits
 	// their listening address via the onboarding popup modal, which POSTs to /admin/post/config.
-	services, err := persistence.Services.GetAllServices()
+	services, err := persistence.Drawbridge.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}
