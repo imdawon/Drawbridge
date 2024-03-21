@@ -251,6 +251,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				fmt.Println(err)
 				return
 			}
+			// Trim unused buffer null terminating characters.
 			buf = bytes.Trim(buf, "\x00")
 			// Print the incoming data - for debugging
 			fmt.Printf("Received: %s\n", buf)
@@ -259,7 +260,6 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			emissaryRequestPayload := string(buf[:])
 			if strings.Contains(emissaryRequestPayload, "PS_CONN") {
 				emissaryRequestValue = strings.TrimPrefix(emissaryRequestPayload, "PS_CONN")
-				emissaryRequestValue = strings.TrimSpace(emissaryRequestValue)
 				emissaryRequestValue = strings.TrimSpace(emissaryRequestValue)
 				// May be used later after we standardize how and when to read the tcp connection into the buf above.
 				// d.getRequestProtectedServiceName(clientConn)

@@ -20,9 +20,9 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	}
 }
 
-var Services *SQLiteRepository
+var Drawbridge *SQLiteRepository
 
-func (r *SQLiteRepository) Migrate() error {
+func (r *SQLiteRepository) MigrateServices() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS services(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
