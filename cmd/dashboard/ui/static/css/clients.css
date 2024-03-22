@@ -1,0 +1,31 @@
+* {
+    box-sizing: border-box;
+}
+
+#devices {
+    min-width: 100%;
+}
+
+#devices ul {
+    display: grid;
+    grid-template-columns: 300px 300px 300px;
+    list-style-type: none;
+	margin-bottom: 25px;
+    padding-left: 0;
+}
+
+#devices ul li {
+    display: grid;
+    grid-template-columns: 250px;
+    row-gap: 10px;
+}
+
+#devices ul li button {
+    width: 100px;
+}
+
+body {
+    background-color: #303952;
+    color: #dfe6e9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
