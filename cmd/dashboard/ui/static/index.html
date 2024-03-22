@@ -4,44 +4,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" type="text/css" href="./css/index.css"/>
+  <link rel="stylesheet" type="text/css" href="./css/index.css" />
   <title>Drawbridge Dashboard</title>
 </head>
 
 <body>
-  <h1>Drawbridge Dashboard</h1>
-  <header>
-    <ul>
-      <li>Protected Services available at </li>
-      <li id="listener-address" hx-get="/admin/get/config" hx-trigger="load" hx-swap="innerHTML">...</li>
-    </ul>
-  </header>
-  <div id="services">
-    <h2>Protect new Service</h2>
-    <p>Add a Service that authorized Emissary clients will be able to access via Drawbridge.</p>
-    <form hx-post="/service/create" hx-target="#protected-services-list">
-      <label for="service-name">Name</label>
-      <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
-      <label for="service-name">Host</label>
-      <input type="text" id="service-host" name="service-host" placeholder="192.168.1.2 or my.domain.com">
-      <label for="service-name">Port</label>
-      <input type="number" id="service-port" name="service-port" placeholder="25565">
-      <input type="submit">
-    </form>
+  <div class="container">
+    <div id="sidebar">
+      <ul>
+        <li>
+          <a href="./index.html">Protected Services</a>
+        </li>
+        <li>
+          <a href="./clients.html">Emissary Clients</a>
+        </li>
+      </ul>
+    </div>
+    <div id="content">
+      <h1>Drawbridge Dashboard</h1>
+      <header>
+        <ul>
+          <li>Protected Services available at </li>
+          <li id="listener-address" hx-get="/admin/get/config" hx-trigger="load" hx-swap="innerHTML">...</li>
+        </ul>
+      </header>
+      <div id="services">
+        <h2>Protect new Service</h2>
+        <p>Add a Service that authorized Emissary clients will be able to access via Drawbridge.</p>
+        <form hx-post="/service/create" hx-target="#protected-services-list">
+          <label for="service-name">Name</label>
+          <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
+          <label for="service-name">Host</label>
+          <input type="text" id="service-host" name="service-host" placeholder="192.168.1.2 or my.domain.com">
+          <label for="service-name">Port</label>
+          <input type="number" id="service-port" name="service-port" placeholder="25565">
+          <input type="submit">
+        </form>
 
-    <h3>Protected Services</h3>
-    <ul id="protected-services-list" hx-get="/services" hx-trigger="load" hx-swap="innerHTML">
-      <li>Nothing here yet!</li>
-    </ul>
-  </div>
+        <h3>Protected Services</h3>
+        <ul id="protected-services-list" hx-get="/services" hx-trigger="load" hx-swap="innerHTML">
+          <li>Nothing here yet!</li>
+        </ul>
+      </div>
 
-  <form hx-get="/admin/get/emissary_auth_files" hx-target="#geenrate-response">
-    <label for="submit-geenrate">Generate Certificates and Key for an Emissary client</label>
-    <input name="submit-geenrate" type="submit" value="Generate">
-    <p id="geenrate-response"></p>
-  </form>
+      <form hx-get="/admin/get/emissary_auth_files" hx-target="#geenrate-response">
+        <label for="submit-geenrate">Generate Certificates and Key for an Emissary client</label>
+        <input name="submit-geenrate" type="submit" value="Generate">
+        <p id="geenrate-response"></p>
+      </form>
 
-  <!-- <div id="policies">
+      <!-- <div id="policies">
     <h2>Emissary Authorization Policies</h2>
     <p>To access Services protected by Drawbridge, an Emissary client will need to match the following policy or policies.</p>
     <p>Policies can validate details about a machine running Emissary, such as an OS version, a specific serial number, or connecting from a specific IP.</p>
@@ -59,7 +71,11 @@
     </div>
   </div> -->
 
-<div id="onboarding-modal" hx-get="/admin/get/onboarding_modal" hx-trigger="load" hx-target="body" hx-swap="beforeend"></div>
+      <div id="onboarding-modal" hx-get="/admin/get/onboarding_modal" hx-trigger="load" hx-target="body"
+        hx-swap="beforeend"></div>
+    </div>
+
+  </div>
 
 </body>
 <script src="./htmx.min.js"></script>
