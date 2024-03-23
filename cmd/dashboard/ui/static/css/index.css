@@ -158,7 +158,9 @@ label {
 
 /* Sidebar */
 #sidebar {
-	margin-right: 125px;
+	margin-top: .67em;
+	width: max-content;
+	margin-right: 50px;
 }
 
 #sidebar ul li {

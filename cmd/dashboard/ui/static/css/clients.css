@@ -29,3 +29,13 @@ body {
     color: #dfe6e9;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+.emissary-restore-btn {
+    background-color: green;
+    color: white;
+}
+
+.emissary-revoke-btn {
+    background-color: red;
+    color: white;
+}
