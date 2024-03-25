@@ -39,3 +39,7 @@ body {
     background-color: red;
     color: white;
 }
+
+#emissary-bundle-btn {
+    font-size: large;
+}

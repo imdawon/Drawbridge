@@ -27,7 +27,16 @@
         <h2>Emissary Bundle</h2>
         <p>An Emissary Bundle is a preconfigured Emissary Client which will connect to your Drawbridge server with no user setup required.</p>
         <p>Just unzip and launch!</p> 
-        <button>Create Emissary Bundle</button>
+        <form id="bundle-form" method="get" action="/admin/get/emissary/bundle">
+          <label for="emissary-platform">Platform</label>
+          <select id="service-name" name="emissary-platform" placeholder="macOS">
+            <option value="macos">macOS</option>
+            <option value="windows">Windows</option>
+            <option value="linux">Linux</option>
+          </select>
+          <input id="emissary-bundle-btn" type="submit" value="Create Emissary Bundle">
+        </form>
+
       </div>
       <div id="devices">
         <h2>Device Fleet</h2>
@@ -62,5 +71,6 @@
 </body>
 <script src="./htmx.min.js"></script>
 <script src="./_hyperscript.min.js"></script>
+<script src="./clients.js"></script>
 
 </html>
