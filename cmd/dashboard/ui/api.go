@@ -48,6 +48,31 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
+	r.Get("/admin/get/emissary/bundle", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		emissaryBundleConfig := drawbridge.EmissaryConfig{}
+		decoder.Decode(&emissaryBundleConfig, r.Form)
+
+		bundledFile, err := f.DrawbridgeAPI.GenerateEmissaryBundle(emissaryBundleConfig)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, `<span class="error">Error creating Emissary Bundle. Please try again.</span>`)
+		}
+		w.WriteHeader(http.StatusOK)
+		// Set the appropriate headers for the file download
+		w.Header().Set("Content-Disposition", "attachment; filename=example.pdf")
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Length", string(len(*bundledFile)))
+
+		// Write the file bytes to the HTTP response
+		_, err = w.Write(*bundledFile)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	})
+
 	r.Get("/admin/get/config", func(w http.ResponseWriter, r *http.Request) {
 		listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
 		if listeningAddressBytes != nil {
