@@ -21,6 +21,8 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -336,22 +338,20 @@ type GitHubLatestAssetsBody struct {
 	Name  string `json:"name"`
 }
 
+type BundleFile struct {
+	Contents *[]byte
+	Name     string
+}
+
 // * This is a very important / dangerous function *
 // A Drawbridge admin can generate an "Emissary Bundle" which adds
 // the encryption keys, certs, and drawbridge connection address alongside the Emissary client binary.
 // This reduces the need for an Emissary user to manually configure the Emissary client at all.
 // To accomplish this, we pull the latest version of Emissary from GitHub Releases, verify it is signed with the
 // Drawbridge & Emissary signing key, generate the mTLS key(s) and cert, zip it all up, and allow the Drawbridge admin to download it.
-func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*[]byte, error) {
-	// Grab the Drawbridge & Emissary Signing Key file from GitHub
-	resp, err := http.Get("https://raw.githubusercontent.com/dhens/Drawbridge/master/SIGNING_KEY.asc")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	signingKeyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 500))
-	if err != nil {
-		return nil, err
+func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile, error) {
+	if config.Platform != "macos" && config.Platform != "linux" && config.Platform != "windows" {
+		return nil, fmt.Errorf("platform %s is not supported", config.Platform)
 	}
 
 	// Get assets url
@@ -387,6 +387,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*[]byte, err
 	var emissaryClientURL string
 	var emissaryClientSigURL string
 	var emissaryClientFilename string
+	var emissaryClientSigFilename string
 	// Ensure we only allow legit URLs in case the response gets hijacked / modified somehow.
 	// We don't want make a request get whatever arbitrary response url is returned from the GitHub API.
 	for _, v := range githubAssetsBody {
@@ -398,9 +399,10 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*[]byte, err
 			return nil, fmt.Errorf("unexpected url returned from github 'releases/latest' endpoint. unable to get Emissary client")
 		}
 		// Add all macos asset files since we need the zipped Emissary client and the .sig file.
-		if strings.Contains(assetURL, "macos") {
+		if strings.Contains(assetURL, config.Platform) {
 			if strings.Contains(assetURL, "asc") {
 				emissaryClientSigURL = assetURL
+				emissaryClientSigFilename = v.Name
 				continue
 			}
 			emissaryClientFilename = v.Name
@@ -436,7 +438,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*[]byte, err
 
 	// Verify the Emissary file we downloaded is properly signed with the Drawbridge & Emissary Signing Key.
 	pgp := crypto.PGP()
-	publicKey, err := crypto.NewKeyFromArmored(string(signingKeyBytes[:]))
+	publicKey, err := crypto.NewKeyFromArmored(DRAWBRIDGE_AND_EMISSARY_SIGNING_PUBKEY)
 	if err != nil {
 		return nil, err
 	}
@@ -459,42 +461,62 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*[]byte, err
 
 	// We don't care that we are modifying these files and sending them to the client without re-signing.
 	// The client isn't supposed to do any manual config anyway.
-	// For power-users, we could re-sign our Emissary Bundle with the Drawbridge CA.
+	// For power-users, we could re-sign our Emissary Bundle with their Drawbridge CA.
 
-	// Save .zip file contents to disk
-	utils.SaveFileByte(emissaryClientFilename, emissaryReleaseBody, "./bundles")
-	// Save .asc file contents to disk
-	utils.SaveFileByte(fmt.Sprintf("%s.asc", emissaryClientFilename), emissarySigBody, "./bundles")
+	// Save Emissary .zip file contents to disk
 	bundleTmpFolderPath := "./bundle_tmp"
+	emissaryDownloadFolder := "./emissary_download_scratch"
+	utils.SaveFileByte(emissaryClientFilename, emissaryReleaseBody, emissaryDownloadFolder)
+	// Save Emissary .zip .asc file contents to disk
+	utils.SaveFileByte(emissaryClientSigFilename, emissarySigBody, emissaryDownloadFolder)
 	// Unzip the Emissary release
 	// TODO
 	// create bundle_tmp folder before running this.
-	relativeEmissaryClientPath := fmt.Sprintf("./bundles/%s", emissaryClientFilename)
-	err = utils.UnzipSource(relativeEmissaryClientPath, bundleTmpFolderPath)
+	// ./emissary_download_scratch/Emissary_platform_xxx.zip
+	emissaryZipPath := path.Join(emissaryDownloadFolder, emissaryClientFilename)
+	// Unzip the zip file into the bundle_tmp directory.
+	// We will be zipping up the contents of the ./bundle_tmp directory later.
+	_, err = utils.Unzip(emissaryZipPath, bundleTmpFolderPath)
 	if err != nil {
-		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("Unable to unzip Emissary client downloaded from GitHub: %s", err)))
-
+		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("unable to unzip Emissary client downloaded from GitHub: %s", err)))
+		return nil, err
 	}
 	// Generate and save the mTLS key(s) and cert
-	d.CreateEmissaryClientTCPMutualTLSKey("test_client_id", "./bundle_tmp/put_certificates_and_key_from_drawbridge_here")
-
+	clientId := "1337"
+	certsAndKeysFolderPath := "./bundle_tmp/put_certificates_and_key_from_drawbridge_here"
+	d.CreateEmissaryClientTCPMutualTLSKey(clientId, certsAndKeysFolderPath)
+	// Copy ca.crt next to keys
+	err = utils.CopyFile("./ca/ca.crt", certsAndKeysFolderPath)
+	if err != nil {
+		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("unable to copy the Drawbridge ca.crt file to the Emissary Bundle put_certificates_... folder: %s", err)))
+		return nil, err
+	}
 	// Generate and save bundle using Drawbridge listening address
 	listeningAddress := utils.GetListeningAddress()
 	if len(listeningAddress) > 0 {
-		utils.SaveFile("drawbridge.txt", "", "./bundle_tmp/bundle")
+		// TODO
+		// Change the port hardcoding and write the listening port in the lsiteningAddress config file instead.
+		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:3100", listeningAddress), "./bundle_tmp/bundle")
 	} else {
 		slog.Error("Emissary Bundle Creation", slog.String("Error", "Unable to get Drawbridge listening address. Unable to finish creating bundle."))
 		return nil, fmt.Errorf("error getting Drawbridge listening address")
 	}
-	// Zip up Emissary directory
-	bundledFileNameAndRelativePath := fmt.Sprintf("./bundle_tmp/bundled_%s", emissaryClientFilename)
+	// Zip up Emissary directory to bundles output folder.
+	bundledFilename := fmt.Sprintf("./bundled_%s_%s", emissaryClientFilename, clientId)
 	// TODO
 	// return the file contents rather than writing to disk by default.
 	// there are tons of situations where we'd prefer to just hand off the bytes to the Drawbridge admin in the
 	// form of a file.
-	utils.ZipSource(bundleTmpFolderPath, bundledFileNameAndRelativePath)
+	utils.ZipSource(bundleTmpFolderPath, bundledFilename)
 
 	// Serve to Drawbridge admin
-	bundledEmissaryZipFile := utils.ReadFile(bundledFileNameAndRelativePath)
-	return bundledEmissaryZipFile, nil
+	bundledEmissaryZipFile := utils.ReadFile(bundledFilename)
+	// Remove temp folders
+	defer os.RemoveAll("./bundle_tmp")
+	defer os.RemoveAll("./emissary_download_scratch")
+	bundleFile := BundleFile{
+		Contents: bundledEmissaryZipFile,
+		Name:     bundledFilename,
+	}
+	return &bundleFile, nil
 }
