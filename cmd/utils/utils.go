@@ -162,79 +162,75 @@ func GetDeviceIPs() ([]net.IP, error) {
 
 }
 
-func UnzipSource(source, destination string) error {
-	// 1. Open the zip file
-	reader, err := zip.OpenReader(source)
+func CopyFile(filePath string, destinationPath string) error {
+	fileBytes := ReadFile(filePath)
+	splitPath := strings.Split(filePath, "/")
+	filePathFolderLevels := len(splitPath)
+	filename := splitPath[filePathFolderLevels-1:][0]
+
+	err := SaveFileByte(filename, *fileBytes, destinationPath)
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
-
-	// 2. Get the absolute destination path
-	destination, err = filepath.Abs(destination)
-	if err != nil {
-		return err
-	}
-
-	// 3. Iterate over zip files inside the archive and unzip each of them
-	for _, f := range reader.File {
-		err := unzipFile(f, destination)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func unzipFile(f *zip.File, destination string) error {
-	// This must be from how we output the file names during the build process in the ./build/ files.
-	// Maybe we should fix this build, rather than here, in the future.
-	if strings.Contains(f.Name, "release/") {
-		f.Name = strings.Split(f.Name, "release/")[1]
-		if !strings.Contains(f.Name, ".zip") {
-			f.Name = fmt.Sprintf("%s.zip", f.Name)
+// Unzip will decompress a zip archive, moving all files and folders
+// within the zip file (parameter 1) to an output directory (parameter 2).
+func Unzip(src string, dest string) ([]string, error) {
+
+	var filenames []string
+
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return filenames, err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+
+		// Store filename/path for returning and using later on
+		fpath := filepath.Join(dest, f.Name)
+
+		// Check for ZipSlip.
+		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+			return filenames, fmt.Errorf("%s: illegal file path", fpath)
+		}
+
+		filenames = append(filenames, fpath)
+
+		if f.FileInfo().IsDir() {
+			// Make Folder
+			os.MkdirAll(fpath, os.ModePerm)
+			continue
+		}
+
+		// Make File
+		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+			return filenames, err
+		}
+
+		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return filenames, err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return filenames, err
+		}
+
+		_, err = io.Copy(outFile, rc)
+
+		// Close the file without defer to close before next iteration of loop
+		outFile.Close()
+		rc.Close()
+
+		if err != nil {
+			return filenames, err
 		}
 	}
-	// 4. Check if file paths are not vulnerable to Zip Slip
-	filePath := filepath.Join(destination, f.Name)
-	if !strings.HasPrefix(filePath, filepath.Clean(destination)+string(os.PathSeparator)) {
-		return fmt.Errorf("invalid file path: %s", filePath)
-	}
-
-	// 5. Create directory tree
-	if f.FileInfo().IsDir() {
-		if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// Excludes the file name so we can create the necessary parent folder, if any.
-	folderPathStrings := strings.Split(filePath, "/")
-	fullFolderPath := strings.Join(folderPathStrings[:len(folderPathStrings)-1], "/")
-	if err := os.MkdirAll(filepath.Dir(fullFolderPath), os.ModePerm); err != nil {
-		return err
-	}
-
-	// 6. Create a destination file for unzipped content
-	destinationFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-	if err != nil {
-		return err
-	}
-	defer destinationFile.Close()
-
-	// 7. Unzip the content of a file and copy it to the destination file
-	zippedFile, err := f.Open()
-	if err != nil {
-		return err
-	}
-	defer zippedFile.Close()
-
-	if _, err := io.Copy(destinationFile, zippedFile); err != nil {
-		return err
-	}
-	return nil
+	return filenames, nil
 }
 
 func ZipSource(source, target string) error {

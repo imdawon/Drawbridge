@@ -56,16 +56,18 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		bundledFile, err := f.DrawbridgeAPI.GenerateEmissaryBundle(emissaryBundleConfig)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, `<span class="error">Error creating Emissary Bundle. Please try again.</span>`)
+			fmt.Fprintf(w, `<span class="error">Error creating Emissary Bundle: %s. Please go back and try again.</span>`, err)
+			return
 		}
+		fileContents := bundledFile.Contents
 		w.WriteHeader(http.StatusOK)
 		// Set the appropriate headers for the file download
-		w.Header().Set("Content-Disposition", "attachment; filename=example.pdf")
-		w.Header().Set("Content-Type", "application/pdf")
-		w.Header().Set("Content-Length", string(len(*bundledFile)))
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, bundledFile.Name))
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Length", string(len(*fileContents)))
 
 		// Write the file bytes to the HTTP response
-		_, err = w.Write(*bundledFile)
+		_, err = w.Write(*fileContents)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
