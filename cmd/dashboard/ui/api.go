@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"dhens/drawbridge/cmd/analytics"
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
@@ -110,10 +111,21 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			newSettings.ListenerAddress = "127.0.0.1"
 		}
 
-		err := f.DB.UpdateDrawbridgeConfigSettingByName("listening_address", strings.TrimSpace(newSettings.ListenerAddress))
+		err := f.DB.CreateNewDrawbridgeConfigSettings("listening_address", strings.TrimSpace(newSettings.ListenerAddress))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
+		}
+
+		err = f.DB.CreateNewDrawbridgeConfigSettings("dau_ping_enabled", strconv.FormatBool(newSettings.EnableDAUPing))
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
+		}
+
+		// Kick off the DAU ping now that it has been enabled
+		if newSettings.EnableDAUPing {
+			go analytics.DAUPing(f.DB)
 		}
 
 		// Now that have a listening address we can generate our certificate authority and start our other
@@ -125,7 +137,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	r.Get("/admin/get/onboarding_modal", func(w http.ResponseWriter, r *http.Request) {
 		listeningAddress, err := f.DB.GetDrawbridgeConfigValueByName("listening_address")
-		if listeningAddress == nil && err != nil {
+		if *listeningAddress == "" && err == nil {
 			templates.GetOnboardingModal().Render(r.Context(), w)
 		} else {
 			// Serve nothing since we already have set a listening address (onboarding has already happened).

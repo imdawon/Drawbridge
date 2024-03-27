@@ -318,12 +318,3 @@ func CreateDrawbridgeFilePath(relativePathWithFilename string) string {
 
 	return fullFilePath
 }
-
-func GetListeningAddress() string {
-	listeningAddressBytes := ReadFile("config/listening_address.txt")
-	if listeningAddressBytes != nil {
-		return strings.TrimSpace(string(*listeningAddressBytes))
-	} else {
-		return ""
-	}
-}
