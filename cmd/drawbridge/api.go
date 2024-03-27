@@ -9,6 +9,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"dhens/drawbridge/cmd/drawbridge/emissary/authorization"
+	"dhens/drawbridge/cmd/drawbridge/persistence"
+	"dhens/drawbridge/cmd/drawbridge/services"
 	flagger "dhens/drawbridge/cmd/flags"
 	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
 	"dhens/drawbridge/cmd/utils"
@@ -38,23 +40,9 @@ type Settings struct {
 // The int key is the ID of the service as stored in the database.
 type Drawbridge struct {
 	CA                *certificates.CA
-	ProtectedServices map[int64]RunningProtectedService
-}
-
-type RunningProtectedService struct {
-	Service ProtectedService
-}
-
-// A service that Drawbridge will protect by only allowing access from authorized machines running the Emissary client.
-// In the future, a Client Policy can be assigned to a Protected Service, allowing for different requirements for different Protected Services.
-type ProtectedService struct {
-	ID                  int64
-	Name                string               `schema:"service-name" json:"service-name"`
-	Description         string               `schema:"service-description" json:"service-description"`
-	Host                string               `schema:"service-host" json:"service-host"`
-	Port                uint16               `schema:"service-port" json:"service-port"`
-	ClientPolicyID      int64                `schema:"service-policy-id,omitempty" json:"service-policy-id,omitempty"`
-	AuthorizationPolicy authorization.Policy `schema:"authorization-policy,omitempty" json:"authorization-policy,omitempty"`
+	ProtectedServices map[int64]services.RunningProtectedService
+	Settings          *Settings
+	DB                *persistence.SQLiteRepository
 }
 
 type EmissaryConfig struct {
@@ -110,8 +98,8 @@ func (d *Drawbridge) SetUpEmissaryAPI(hostAndPort string) {
 	log.Fatalf("Error starting Emissary API server: %s", server.ListenAndServeTLS("", ""))
 }
 
-func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []ProtectedService) {
-	certificates.CertificateAuthority = &certificates.CA{}
+func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []services.ProtectedService) {
+	certificates.CertificateAuthority = &certificates.CA{DB: d.DB}
 	err := certificates.CertificateAuthority.SetupCertificates()
 	if err != nil {
 		log.Fatalf("Error setting up root CA: %s", err)
@@ -144,8 +132,10 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 		slog.Error("Unable to create new Emissary Client TCP mTLS key. Server certificate does not exist!")
 	}
 
-	listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
-	listeningAddress := string(*listeningAddressBytes)
+	listeningAddress, err := d.DB.GetDrawbridgeConfigValueByName("listening_address")
+	if err != nil {
+		slog.Error("Database", slog.Any("Could not get all services: %s", err))
+	}
 
 	clientCert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
@@ -157,7 +147,7 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 			Locality:      []string{""},
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
-			CommonName:    listeningAddress,
+			CommonName:    *listeningAddress,
 		},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(10, 0, 0),
@@ -223,8 +213,8 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 	return nil
 }
 
-func (d *Drawbridge) AddNewProtectedService(protectedService ProtectedService) error {
-	d.ProtectedServices[protectedService.ID] = RunningProtectedService{
+func (d *Drawbridge) AddNewProtectedService(protectedService services.ProtectedService) error {
+	d.ProtectedServices[protectedService.ID] = services.RunningProtectedService{
 		Service: protectedService,
 	}
 	return nil
@@ -239,8 +229,11 @@ func (d *Drawbridge) StopRunningProtectedService(id int64) {
 func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 	// The host and port this tcp server will listen on.
 	// This is distinct from the ProtectedService "Host" field, which is the remote address of the actual service itself.
-	addressAndPortBytes := utils.ReadFile("config/listening_address.txt")
-	addressAndPort := fmt.Sprintf("%s:3100", string(*addressAndPortBytes))
+	listeningAddress, err := d.DB.GetDrawbridgeConfigValueByName("listening_address")
+	if err != nil {
+		slog.Error("Database", slog.Any("Error: %s", err))
+	}
+	addressAndPort := fmt.Sprintf("%s:3100", *listeningAddress)
 	slog.Info(fmt.Sprintf("Starting Drawbridge reverse proxy tunnel. Emissary clients can reach Drawbridge at %s", addressAndPort))
 	l, err := tls.Listen("tcp", "0.0.0.0:3100", d.CA.ServerTLSConfig)
 
@@ -492,11 +485,14 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 		return nil, err
 	}
 	// Generate and save bundle using Drawbridge listening address
-	listeningAddress := utils.GetListeningAddress()
-	if len(listeningAddress) > 0 {
+	listeningAddress, err := d.DB.GetDrawbridgeConfigValueByName("listening_address")
+	if err != nil {
+		return nil, err
+	}
+	if len(*listeningAddress) > 0 {
 		// TODO
 		// Change the port hardcoding and write the listening port in the lsiteningAddress config file instead.
-		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:3100", listeningAddress), "./bundle_tmp/bundle")
+		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:3100", *listeningAddress), "./bundle_tmp/bundle")
 	} else {
 		slog.Error("Emissary Bundle Creation", slog.String("Error", "Unable to get Drawbridge listening address. Unable to finish creating bundle."))
 		return nil, fmt.Errorf("error getting Drawbridge listening address")

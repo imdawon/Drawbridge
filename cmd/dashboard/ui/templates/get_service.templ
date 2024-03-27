@@ -2,9 +2,9 @@ package templates
 
 import "strconv"
 import "fmt"
-import "dhens/drawbridge/cmd/drawbridge"
+import "dhens/drawbridge/cmd/drawbridge/services"
 
-templ GetService(service *drawbridge.ProtectedService) {
+templ GetService(service *services.ProtectedService) {
     <div id={ fmt.Sprintf("service-%d",service.ID) }>
         <li>Name: { service.Name }</li>
         <li>Host: { service.Host }:{ strconv.FormatUint(uint64(service.Port), 10) }</li>

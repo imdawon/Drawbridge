@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/utils"
 	"encoding/pem"
 	"fmt"
@@ -25,6 +26,7 @@ type CA struct {
 	ServerTLSConfig      *tls.Config
 	CertificateAuthority *x509.Certificate
 	PrivateKey           crypto.PrivateKey
+	DB                   *persistence.SQLiteRepository
 }
 
 var CertificateAuthority *CA
@@ -84,14 +86,16 @@ func (c *CA) SetupCertificates() (err error) {
 	// Read the listening address set by the Drawbridge admin. This is important as it sets the DNSNames fields
 	// for the certificate authority and server certificates, which is necessary to ensure the Emissary clients
 	// can validate the Drawbridge server they are connecting to, is, in fact, the correct one.
-	listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
-	listeningAddress := string(*listeningAddressBytes)
-	isLAN := drawbridgeListeningAddressIsLAN(net.ParseIP(listeningAddress))
+	listeningAddress, err := c.DB.GetDrawbridgeConfigValueByName("listening_address")
+	if err != nil {
+		slog.Error("Database", slog.Any("Error: %s", err))
+	}
+	isLAN := drawbridgeListeningAddressIsLAN(net.ParseIP(*listeningAddress))
 	slog.Debug("Drawbridge listening address type", slog.Bool("isLAN", isLAN))
 	// CA Cert, Server Cert, and Server key do not exist yet. We will generate them now, and save them to disk for reuse.
 	// 1. Set up our CA certificate
 	ca := x509.Certificate{
-		DNSNames:     []string{listeningAddress, "localhost"},
+		DNSNames:     []string{*listeningAddress, "localhost"},
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
@@ -101,7 +105,7 @@ func (c *CA) SetupCertificates() (err error) {
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 		},
-		IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(listeningAddress)},
+		IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(*listeningAddress)},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  true,
@@ -178,7 +182,7 @@ func (c *CA) SetupCertificates() (err error) {
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		// TODO: Must be domain name or IP during user dash setup
-		DNSNames: []string{listeningAddress, "localhost"},
+		DNSNames: []string{*listeningAddress, "localhost"},
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},
@@ -187,7 +191,7 @@ func (c *CA) SetupCertificates() (err error) {
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 		},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(listeningAddress)},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback, net.ParseIP(*listeningAddress)},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(10, 0, 0),
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},

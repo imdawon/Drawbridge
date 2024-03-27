@@ -101,6 +101,22 @@ func SaveFileByte(fileName string, fileContents []byte, relativePath string) err
 	return nil
 }
 
+func DeleteDirectory(relativePath string) error {
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	execDirPath := path.Dir(execPath)
+	fullPath := filepath.Join(execDirPath, relativePath)
+
+	err = os.RemoveAll(fullPath) // delete an entire directory
+	if err != nil {
+		slog.Error("File Operation", slog.Any("Fail - Deleting Drawbridge File/Folder", fullPath))
+		return err
+	}
+	return nil
+}
+
 func FileExists(pathWithFilename string) bool {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
