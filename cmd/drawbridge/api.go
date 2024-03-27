@@ -33,6 +33,7 @@ import (
 
 type Settings struct {
 	ListenerAddress string `schema:"listener-address"`
+	EnableDAUPing   bool   `schema:"enable-ping"`
 }
 
 // Used by the frontend controller to execute Drawbridge functions.

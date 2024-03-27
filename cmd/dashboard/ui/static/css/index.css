@@ -109,6 +109,20 @@ label {
 	animation-name:zoomIn;
 	animation-duration:150ms;
 	animation-timing-function: ease;
+
+	display: grid;
+}
+
+.modal-content > input#listener-address {
+	font-size: 16px;
+	width: 33%;
+	margin-bottom: 16px;
+}
+
+.modal-content > input#submit-config {
+	width: 20%;
+	font-size: large;
+	height: 40px;
 }
 
 #modal.closing {
