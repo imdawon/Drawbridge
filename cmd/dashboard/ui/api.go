@@ -4,8 +4,8 @@ import (
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
+	"dhens/drawbridge/cmd/drawbridge/services"
 	flagger "dhens/drawbridge/cmd/flags"
-	"dhens/drawbridge/cmd/utils"
 	"fmt"
 	"log"
 	"log/slog"
@@ -30,7 +30,8 @@ var decoder = schema.NewDecoder()
 
 type Controller struct {
 	DrawbridgeAPI     *drawbridge.Drawbridge
-	ProtectedServices []drawbridge.ProtectedService
+	ProtectedServices []services.ProtectedService
+	DB                *persistence.SQLiteRepository
 }
 
 func (f *Controller) SetUp(hostAndPort string) error {
@@ -43,7 +44,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	case "darwin":
 		exec.Command("open", "http://localhost:3000").Start()
 	default:
-		slog.Info("platform not supported for opening Drawbridge in default browser:", runtime.GOOS)
+		slog.Info("Launch Drawbridge Dashboard In Browser", slog.Any("platform not supported for opening Drawbridge in default browser:", runtime.GOOS))
 	}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -72,19 +73,16 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
 	})
 
 	r.Get("/admin/get/config", func(w http.ResponseWriter, r *http.Request) {
-		listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
-		if listeningAddressBytes != nil {
-			listeningAddress := strings.TrimSpace(string(*listeningAddressBytes))
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, fmt.Sprintf("%s:%d", listeningAddress, 3100))
-		} else {
+		listeningAddress, err := f.DB.GetDrawbridgeConfigValueByName("listening_address")
+		if err != nil {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "...")
-
+		} else {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "%s:%d", *listeningAddress, 3100)
 		}
 	})
 
@@ -112,7 +110,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			newSettings.ListenerAddress = "127.0.0.1"
 		}
 
-		err := utils.SaveFile("listening_address.txt", newSettings.ListenerAddress, "config")
+		err := f.DB.UpdateDrawbridgeConfigSettingByName("listening_address", strings.TrimSpace(newSettings.ListenerAddress))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
@@ -122,12 +120,12 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		// services that require the CA to operate, like the mTLS reverse proxy.
 		go f.DrawbridgeAPI.SetUpCAAndDependentServices(f.ProtectedServices)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, fmt.Sprintf("%s:%d", newSettings.ListenerAddress, 3100))
+		fmt.Fprintf(w, "%s:%d", newSettings.ListenerAddress, 3100)
 	})
 
 	r.Get("/admin/get/onboarding_modal", func(w http.ResponseWriter, r *http.Request) {
-		listeningAddressBytes := utils.ReadFile("config/listening_address.txt")
-		if listeningAddressBytes == nil {
+		listeningAddress, err := f.DB.GetDrawbridgeConfigValueByName("listening_address")
+		if listeningAddress == nil && err != nil {
 			templates.GetOnboardingModal().Render(r.Context(), w)
 		} else {
 			// Serve nothing since we already have set a listening address (onboarding has already happened).
@@ -136,29 +134,21 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		}
 	})
 
-	r.Get("/admin/get/emissary_auth_files", func(w http.ResponseWriter, r *http.Request) {
-		err := f.DrawbridgeAPI.CreateEmissaryClientTCPMutualTLSKey("testing")
-		if err != nil {
-			fmt.Fprintf(w, "Error saving Emissary Certificates and Key to local filesystem.")
-		}
-		fmt.Fprintf(w, "Successfully saved Emissary Certificates and Key to \"emissary_certs_and_key_here\" to local filesystem.")
-	})
-
 	r.Post("/service/create", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		newService := drawbridge.ProtectedService{}
+		newService := services.ProtectedService{}
 		decoder.Decode(&newService, r.Form)
 		// Rewrite a host input from the Drawbridge admin so we don't get errors trying to parse
 		// the "localhost" string as a net.IP.
 		if newService.Host == "localhost" {
 			newService.Host = "127.0.0.1"
 		}
-		newServiceWithId, err := persistence.Drawbridge.CreateNewService(newService)
+		newServiceWithId, err := f.DB.CreateNewService(newService)
 		if err != nil {
 			slog.Error("error creatng new service: %w", err)
 		}
 
-		services, err := persistence.Drawbridge.GetAllServices()
+		services, err := f.DB.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
@@ -186,7 +176,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 		}
 
-		service, err := persistence.Drawbridge.GetServiceById(int64(id))
+		service, err := f.DB.GetServiceById(int64(id))
 		if err != nil {
 			log.Fatalf("Could not get service: %s", err)
 		}
@@ -196,7 +186,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	r.Patch("/service/{id}/edit", f.handleEditService)
 
 	r.Get("/services", func(w http.ResponseWriter, r *http.Request) {
-		services, err := persistence.Drawbridge.GetAllServices()
+		services, err := f.DB.GetAllServices()
 		if err != nil {
 			log.Fatalf("Could not get all services: %s", err)
 		}
@@ -242,7 +232,7 @@ func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 
-	service, err := persistence.Drawbridge.GetServiceById(int64(id))
+	service, err := f.DB.GetServiceById(int64(id))
 	if err != nil {
 		log.Fatalf("Could not get service: %s", err)
 	}
@@ -261,20 +251,20 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
-	newService := &drawbridge.ProtectedService{}
+	newService := services.ProtectedService{}
 	decoder.Decode(newService, r.Form)
 	newService.ID = int64(id)
 
-	err = persistence.Drawbridge.UpdateService(newService, int64(id))
+	err = f.DB.UpdateService(&newService, int64(id))
 	if err != nil {
 		log.Fatalf("Could not update service: %s", err)
 	}
 
-	go f.DrawbridgeAPI.AddNewProtectedService(*newService)
+	go f.DrawbridgeAPI.AddNewProtectedService(newService)
 	if err != nil {
 		log.Fatalf("Failed to start Protected Service after it was edited by a Drawbridge admin: %s", err)
 	}
-	services, err := persistence.Drawbridge.GetAllServices()
+	services, err := f.DB.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}
@@ -291,7 +281,7 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
 	}
-	err = persistence.Drawbridge.DeleteService(id)
+	err = f.DB.DeleteService(id)
 	if err != nil {
 		log.Fatalf("Could not delete service from database: %s", err)
 		// TODO
@@ -301,7 +291,7 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	services, err := persistence.Drawbridge.GetAllServices()
+	services, err := f.DB.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}

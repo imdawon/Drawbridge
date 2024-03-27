@@ -4,6 +4,7 @@ import (
 	"dhens/drawbridge/cmd/dashboard/ui"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
+	"dhens/drawbridge/cmd/drawbridge/services"
 	flagger "dhens/drawbridge/cmd/flags"
 	"dhens/drawbridge/cmd/utils"
 	"flag"
@@ -60,39 +61,67 @@ func main() {
 	flagger.FLAGS.SqliteFilename = filepath.Join(execDirPath, flagger.FLAGS.SqliteFilename)
 
 	// Migrate sqlite tables
-	persistence.Drawbridge = persistence.NewSQLiteRepository(persistence.OpenDatabaseFile(flagger.FLAGS.SqliteFilename))
-	err = persistence.Drawbridge.MigrateServices()
+	db := persistence.NewSQLiteRepository(persistence.OpenDatabaseFile(flagger.FLAGS.SqliteFilename))
+	err = db.MigrateServices()
 	if err != nil {
 		log.Fatalf("Error running services db migration: %s", err)
 	}
-	err = persistence.Drawbridge.MigrateEmissaryClient()
+	err = db.MigrateEmissaryClient()
 	if err != nil {
 		log.Fatalf("Error running emissary_client db migration: %s", err)
 	}
-	err = persistence.Drawbridge.MigrateEmissaryClientEvent()
+	err = db.MigrateEmissaryClientEvent()
 	if err != nil {
 		log.Fatalf("Error running emissary_client_event db migration: %s", err)
 	}
+	err = db.MigrateDrawbridgeConfig()
+	if err != nil {
+		log.Fatalf("Error running drawbridge_config db migration: %s", err)
+	}
 
 	drawbridgeAPI := &drawbridge.Drawbridge{
-		ProtectedServices: make(map[int64]drawbridge.RunningProtectedService, 0),
+		ProtectedServices: make(map[int64]services.RunningProtectedService, 0),
+		DB:                db,
 	}
 
 	// Onboarding configuration has been complete and we can load all existing config files and start servers.
 	// Otherwise, we set up the certificate authority and dependent servers once the user submits
 	// their listening address via the onboarding popup modal, which POSTs to /admin/post/config.
-	services, err := persistence.Drawbridge.GetAllServices()
+	services, err := db.GetAllServices()
 	if err != nil {
 		log.Fatalf("Could not get all services: %s", err)
 	}
 
-	if utils.FileExists("config/listening_address.txt") {
+	// Check if a listening address has been saved in either the old config/listening_address.txt file
+	// or the database.
+	listeningAddress, err := db.GetDrawbridgeConfigValueByName("listening_address")
+	if err != nil {
+		slog.Error("Database", slog.Any("Error: %s", err))
+	}
+	if listeningAddress == nil {
+		if utils.FileExists("config/listening_address.txt") {
+			addressBytes := utils.ReadFile("config/listening_address.txt")
+			if addressBytes != nil {
+				address := string(*addressBytes)
+				listeningAddress = &address
+				err = db.CreateNewDrawbridgeConfigSettings("listening_address", *listeningAddress)
+				if err != nil {
+					slog.Error("Database Insert", slog.Any("error saving listening_address to drawbridge_config table", err))
+				} else {
+					// TODO
+					// Make sure we are a good citizen and not deleting folders without user confirmation.
+					// utils.DeleteDirectory("config")
+				}
+			}
+		}
+	} else {
 		go drawbridgeAPI.SetUpCAAndDependentServices(services)
 	}
 
 	frontendController := ui.Controller{
 		DrawbridgeAPI:     drawbridgeAPI,
 		ProtectedServices: services,
+		DB:                db,
 	}
 
 	// Set up templ controller used to return hypermedia to our htmx frontend.

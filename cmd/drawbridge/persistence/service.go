@@ -2,7 +2,7 @@ package persistence
 
 import (
 	"database/sql"
-	"dhens/drawbridge/cmd/drawbridge"
+	"dhens/drawbridge/cmd/drawbridge/services"
 	"fmt"
 	"log"
 	"log/slog"
@@ -20,8 +20,6 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	}
 }
 
-var Drawbridge *SQLiteRepository
-
 func (r *SQLiteRepository) MigrateServices() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS services(
@@ -37,7 +35,7 @@ func (r *SQLiteRepository) MigrateServices() error {
 	return err
 }
 
-func (r *SQLiteRepository) CreateNewService(service drawbridge.ProtectedService) (*drawbridge.ProtectedService, error) {
+func (r *SQLiteRepository) CreateNewService(service services.ProtectedService) (*services.ProtectedService, error) {
 	res, err := r.db.Exec(
 		"INSERT INTO services(name, description, host, port) values(?,?,?,?)",
 		service.Name,
@@ -59,16 +57,16 @@ func (r *SQLiteRepository) CreateNewService(service drawbridge.ProtectedService)
 
 }
 
-func (r *SQLiteRepository) GetAllServices() ([]drawbridge.ProtectedService, error) {
+func (r *SQLiteRepository) GetAllServices() ([]services.ProtectedService, error) {
 	rows, err := r.db.Query("SELECT * from services")
 	if err != nil {
 		return nil, fmt.Errorf("error getting all services: %w", err)
 	}
 	defer rows.Close()
 
-	var all []drawbridge.ProtectedService
+	var all []services.ProtectedService
 	for rows.Next() {
-		var service drawbridge.ProtectedService
+		var service services.ProtectedService
 		if err := rows.Scan(
 			&service.ID,
 			&service.Name,
@@ -82,14 +80,14 @@ func (r *SQLiteRepository) GetAllServices() ([]drawbridge.ProtectedService, erro
 	return all, nil
 }
 
-func (r *SQLiteRepository) GetServiceById(id int64) (*drawbridge.ProtectedService, error) {
+func (r *SQLiteRepository) GetServiceById(id int64) (*services.ProtectedService, error) {
 	rows, err := r.db.Query("SELECT * FROM services WHERE id = ?", id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting service id %d: %s", id, err)
 	}
 	defer rows.Close()
 
-	var service drawbridge.ProtectedService
+	var service services.ProtectedService
 	for rows.Next() {
 		if err := rows.Scan(
 			&service.ID,
@@ -103,7 +101,7 @@ func (r *SQLiteRepository) GetServiceById(id int64) (*drawbridge.ProtectedServic
 	return &service, nil
 }
 
-func (r *SQLiteRepository) UpdateService(updated *drawbridge.ProtectedService, id int64) error {
+func (r *SQLiteRepository) UpdateService(updated *services.ProtectedService, id int64) error {
 	if id == 0 {
 		return fmt.Errorf("invalid updated ID")
 	}
