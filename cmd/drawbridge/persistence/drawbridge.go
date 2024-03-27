@@ -19,8 +19,9 @@ func (r *SQLiteRepository) MigrateDrawbridgeConfig() error {
 
 func (r *SQLiteRepository) CreateNewDrawbridgeConfigSettings(setting, value string) error {
 	_, err := r.db.Exec(
-		"INSERT INTO drawbridge_config(setting, value) values(?,?)",
+		"INSERT INTO drawbridge_config(setting, value) values(?,?) ON CONFLICT(setting) DO UPDATE SET value = ?",
 		setting,
+		value,
 		value,
 	)
 	if err != nil {
@@ -52,28 +53,6 @@ func (r *SQLiteRepository) GetDrawbridgeConfigValueByName(setting string) (*stri
 		}
 	}
 	return &value, nil
-}
-
-func (r *SQLiteRepository) UpdateDrawbridgeConfigSettingByName(setting string, value string) error {
-	if setting == "" || value == "" {
-		return fmt.Errorf("name ('%s') and/or value ('%s') cannot be 0 character strings", setting, value)
-	}
-	res, err := r.db.Exec(
-		"UPDATE drawbridge_config SET value = ? WHERE name = ?",
-		setting,
-		value,
-	)
-	if err != nil {
-		return fmt.Errorf("error updating drawbridge '%s' setting: %s", setting, err)
-	}
-
-	rowsAffected, err := res.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("no drawbridge setting rows updated: %s", err)
-	}
-
-	return nil
-
 }
 
 func (r *SQLiteRepository) DeleteDrawbridgeConfigSetting(setting string) error {

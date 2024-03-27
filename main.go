@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dhens/drawbridge/cmd/analytics"
 	"dhens/drawbridge/cmd/dashboard/ui"
 	"dhens/drawbridge/cmd/drawbridge"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 )
 
 func main() {
@@ -98,9 +100,11 @@ func main() {
 	if err != nil {
 		slog.Error("Database", slog.Any("Error: %s", err))
 	}
-	if listeningAddress == nil {
+	if *listeningAddress == "" {
 		if utils.FileExists("config/listening_address.txt") {
 			addressBytes := utils.ReadFile("config/listening_address.txt")
+			// If someone has a historical Drawbridge install, we will insert their listening address
+			// into sqlite to get them up-to-date.
 			if addressBytes != nil {
 				address := string(*addressBytes)
 				listeningAddress = &address
@@ -118,6 +122,36 @@ func main() {
 		go drawbridgeAPI.SetUpCAAndDependentServices(services)
 	}
 
+	// Initalize DAU ping only if enabled by the Drawbridge admin.
+	dauPingEnabled, err := db.GetDrawbridgeConfigValueByName("dau_ping_enabled")
+	if err != nil {
+		slog.Error("Database", slog.Any("Error getting dau_ping_enabled: %s", err))
+	} else if *dauPingEnabled == "true" {
+		lastPingTime, err := db.GetDrawbridgeConfigValueByName("last_ping_timestamp")
+		if err != nil {
+			slog.Error("Database", slog.Any("Error getting last_ping_timestamp: %s", err))
+		}
+		// Parse timestamp if it exists and we didn't error out earlier.
+		if *lastPingTime != "" && err == nil {
+			lastPingTimestamp, err := time.Parse(time.RFC3339, *lastPingTime)
+			if err != nil {
+				slog.Error("Time Parse", slog.Any("Error parsing last_ping_timestamp: %s", err))
+			}
+			// Drawbridge hasn't been run within the last 24 hours since the last ping, so we
+			// can run a DAU ping immediately.
+			if time.Since(lastPingTimestamp) >= time.Hour*24 {
+				go analytics.DAUPing(db)
+				// We haven't waited 24 hours since our last DAU ping, so we need to schedule the future time
+				// to do one.
+			} else {
+				time.AfterFunc(time.Until(lastPingTimestamp.AddDate(0, 0, 1)), func() { analytics.DAUPing(db) })
+			}
+			// kick off DAU pings as it has been enabled but we can't get the latest ping timestamp.
+		} else {
+			analytics.DAUPing(db)
+		}
+	}
+
 	frontendController := ui.Controller{
 		DrawbridgeAPI:     drawbridgeAPI,
 		ProtectedServices: services,
@@ -126,4 +160,5 @@ func main() {
 
 	// Set up templ controller used to return hypermedia to our htmx frontend.
 	frontendController.SetUp(flagger.FLAGS.FrontendAPIHostAndPort)
+
 }
