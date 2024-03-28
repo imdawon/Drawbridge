@@ -23,20 +23,20 @@ func GetOnboardingModalConfigure(listeningAddress string, dauPingEnabled bool) t
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"modal\" _=\"on closeModal add .closing then wait for animationend then remove me\"><div class=\"modal-underlay\" _=\"on click trigger closeModal\"></div><form class=\"modal-content\" hx-patch=\"/admin/patch/config\" hx-target=\"#listener-address\"><h2>Set Up Drawbridge</h2><label for=\"listener-address\">What IP should Drawbridge listen on?</label><p class=\"note-text\">Note: this is the address your Emissary clients will use to connect to Drawbridge. It can be a LAN or WAN address.</p><input name=\"listener-address\" type=\"text\" id=\"listener-address\" placeholder=\"50.42.165.84\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"modal\" _=\"on closeModal add .closing then wait for animationend then remove me\"><div class=\"modal-underlay\" _=\"on click trigger closeModal\"></div><form class=\"modal-content\" hx-patch=\"/admin/patch/config\" hx-target=\"#listener-address\"><div id=\"config-modal-header\"><h2>Set Up Drawbridge</h2><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"48\" height=\"48\" fill=\"currentColor\" _=\"on click trigger closeModal\"><path d=\"M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z\"></path></svg></div><label for=\"listener-address\">What IP should Drawbridge listen on?</label><p class=\"note-text\">Note: this is the address your Emissary clients will use to connect to Drawbridge. It can be a LAN or WAN address.</p><p style=\"color:orange\">IP not yet available to edit - will break Drawbridge certificates. Coming soon.</p><input name=\"listener-address\" type=\"text\" id=\"listener-address\" placeholder=\"50.42.165.84\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(listeningAddress)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_oboarding_modal_configure.templ`, Line: 10, Col: 132}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_oboarding_modal_configure.templ`, Line: 16, Col: 132}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"> <label for=\"enable-ping\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" disabled> <label for=\"enable-ping\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
