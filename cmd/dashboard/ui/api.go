@@ -106,8 +106,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	// or writing to a file with some format like JSON.
 	r.Post("/admin/post/config", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		newSettings := &drawbridge.Settings{}
-		decoder.Decode(newSettings, r.Form)
+		newSettings := drawbridge.Settings{}
+		decoder.Decode(&newSettings, r.Form)
 
 		if newSettings.ListenerAddress == "" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -142,8 +142,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 	r.Patch("/admin/patch/config", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		newSettings := &drawbridge.Settings{}
-		decoder.Decode(newSettings, r.Form)
+		newSettings := drawbridge.Settings{}
+		decoder.Decode(&newSettings, r.Form)
 
 		if newSettings.ListenerAddress == "" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -305,6 +305,7 @@ func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
 	idString := chi.URLParam(r, "id")
 	if idString == "" {
 		w.WriteHeader(http.StatusNotFound)
@@ -315,9 +316,8 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 
-	r.ParseForm()
 	newService := services.ProtectedService{}
-	decoder.Decode(newService, r.Form)
+	decoder.Decode(&newService, r.Form)
 	newService.ID = int64(id)
 
 	err = f.DB.UpdateService(&newService, int64(id))
