@@ -25,7 +25,7 @@ func (r *SQLiteRepository) CreateNewDrawbridgeConfigSettings(setting, value stri
 		value,
 	)
 	if err != nil {
-		return fmt.Errorf("error creating new emissary client: %s", err)
+		return fmt.Errorf("error upserting new drawbridge config setting: %s", err)
 	}
 
 	return nil

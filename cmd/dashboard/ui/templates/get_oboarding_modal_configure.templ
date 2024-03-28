@@ -1,15 +1,19 @@
 package templates
 
-templ GetOnboardingModal() {
+templ GetOnboardingModalConfigure(listeningAddress string, dauPingEnabled bool) {
         <div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
-            <div class="modal-underlay"></div>
-            <form class="modal-content" hx-post="/admin/post/config" hx-target="#listener-address">
+            <div class="modal-underlay" _="on click trigger closeModal"></div>
+            <form class="modal-content" hx-patch="/admin/patch/config" hx-target="#listener-address">
                 <h2>Set Up Drawbridge</h2>
                 <label for="listener-address">What IP should Drawbridge listen on?</label>
                 <p class="note-text">Note: this is the address your Emissary clients will use to connect to Drawbridge. It can be a LAN or WAN address.</p>
-                <input name="listener-address" type="text" id="listener-address" placeholder="50.42.165.84"/>
+                <input name="listener-address" type="text" id="listener-address" placeholder="50.42.165.84" value={ listeningAddress }/>
                 <label for="enable-ping">
-                    <input type="checkbox" id="enable-ping" name="enable-ping" checked />
+                    if dauPingEnabled {
+                        <input type="checkbox" id="enable-ping" name="enable-ping" checked/>
+                    } else {
+                        <input type="checkbox" id="enable-ping" name="enable-ping"/>
+                    }
                     Automatically send anonymous and private daily usage ping to Dawson to estimate acive users. 
                 </label>
                 <p class="note-text">Note: this feature does not collect your IP address.</p>

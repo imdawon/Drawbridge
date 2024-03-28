@@ -24,24 +24,28 @@
       <h1>Drawbridge Dashboard</h1>
       <header>
         <ul>
-          <li>Protected Services available at </li>
+          <li>Drawbridge "Protected Services" are available to Emissary clients at </li>
           <li id="listener-address" hx-get="/admin/get/config" hx-trigger="load" hx-swap="innerHTML">...</li>
         </ul>
+        <form id="drawbridge-settings-btn" hx-get="/admin/get/onboarding_modal_config" hx-target="body" hx-swap="beforeend">
+          <input type="submit" id="submit-service" value="Configure Drawbridge">
+        </form>
       </header>
       <div id="services">
         <h2>Protect new Service</h2>
-        <p>Add a Service that authorized Emissary clients will be able to access via Drawbridge.</p>
-        <form hx-post="/service/create" hx-target="#protected-services-list">
+        <p>A Protected Service allows you to secure your self-hosted applications (e.g., a Minecraft server) with Drawbridge. 
+          <p>To connect to a Protected Service, you'll need to use the Emissary Client, which will securely route your traffic through Drawbridge to the desired application.</p>
+        <form id="create-protected-service" hx-post="/service/create" hx-target="#protected-services-list">
           <label for="service-name">Name</label>
           <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
           <label for="service-name">Host</label>
           <input type="text" id="service-host" name="service-host" placeholder="192.168.1.2 or my.domain.com">
           <label for="service-name">Port</label>
           <input type="number" id="service-port" name="service-port" placeholder="25565">
-          <input type="submit">
+          <input type="submit" id="submit-service">
         </form>
 
-        <h3>Protected Services</h3>
+        <h3 id="protected-services">Protected Services</h3>
         <ul id="protected-services-list" hx-get="/services" hx-trigger="load" hx-swap="innerHTML">
           <li>Nothing here yet!</li>
         </ul>
