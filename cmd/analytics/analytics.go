@@ -33,8 +33,11 @@ func DAUPing(db *persistence.SQLiteRepository) {
 		slog.Error("DAU Ping", slog.Any("Error", err))
 	}
 
-	slog.Debug("DAU Ping", slog.String("Upload Result", resp.Status))
-
+	if resp != nil {
+		slog.Debug("DAU Ping", slog.String("Upload Result", resp.Status))
+	} else {
+		slog.Error("DAU Ping - Upload Failed - No Response")
+	}
 	newPingTimestamp := time.Now()
 	newPingTime := newPingTimestamp.Format(time.RFC3339)
 	err = db.CreateNewDrawbridgeConfigSettings("last_ping_timestamp", newPingTime)
