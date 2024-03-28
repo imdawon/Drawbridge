@@ -12,9 +12,22 @@ a:hover {
 }
 
 body {
-    background-color: #303952;
+    background-color: #0A1715;
     color: #ffffff;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#config-modal-header {
+	display: grid;
+	grid-template-columns: auto 35px;
+}
+
+#config-modal-header svg {
+	color: #EE5A24;
+}
+
+#config-modal-header svg:hover {
+	cursor:pointer;
 }
 
 #services p {
