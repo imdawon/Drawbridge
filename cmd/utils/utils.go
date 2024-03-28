@@ -25,8 +25,6 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	relativePath = filepath.Join(execDirPath, relativePath)
 	fullFilePath := filepath.Join(relativePath, fileName)
 	// Excludes the file name so we can create the necessary parent folder, if any
-	folderPathStrings := strings.Split(fullFilePath, "/")
-	fullFolderPath := strings.Join(folderPathStrings[:len(folderPathStrings)-1], "/")
 
 	// Verify the file doesn't exist before opening.
 	_, err = os.Open(fullFilePath)
@@ -36,11 +34,11 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	}
 
 	// Create folder path if it doesn't exist.
-	if _, err := os.Stat(fullFolderPath); errors.Is(err, os.ErrNotExist) {
-		slog.Debug("File Operation", slog.String("Create File", fullFilePath))
-		err := os.MkdirAll(fullFolderPath, os.ModePerm)
+	if _, err := os.Stat(relativePath); errors.Is(err, os.ErrNotExist) {
+		slog.Debug("File Operation", slog.String("Create Folder", relativePath))
+		err := os.MkdirAll(relativePath, os.ModePerm)
 		if err != nil {
-			log.Fatalf("Error creating folder on path %s/%s: %s", fullFolderPath, fileName, err)
+			slog.Error("File Operation", slog.Any("Fail - Creating Folder Path", err))
 		}
 	}
 
@@ -217,11 +215,6 @@ func Unzip(source string, target string) ([]string, error) {
 
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(target, f.Name)
-
-		// Check for ZipSlip.
-		if !strings.HasPrefix(fpath, path.Join(filepath.Clean(target), string(os.PathSeparator))) {
-			return filenames, fmt.Errorf("%s: illegal file path", fpath)
-		}
 
 		filenames = append(filenames, fpath)
 
