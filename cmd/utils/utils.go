@@ -193,10 +193,19 @@ func CopyFile(filePath string, destinationPath string) error {
 
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-func Unzip(src string, dest string) ([]string, error) {
+func Unzip(source string, target string) ([]string, error) {
+	// Ensure we are only reading files from our executable and not where the terminal is executing from.
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	execDirPath := path.Dir(execPath)
+	source = filepath.Join(execDirPath, source)
+	target = filepath.Join(execDirPath, target)
+
 	var filenames []string
 
-	r, err := zip.OpenReader(src)
+	r, err := zip.OpenReader(source)
 	if err != nil {
 		slog.Error("Unzip File", slog.Any("Error", err))
 		return filenames, fmt.Errorf("opening zip file failed: %w", err)
@@ -207,10 +216,10 @@ func Unzip(src string, dest string) ([]string, error) {
 	for _, f := range r.File {
 
 		// Store filename/path for returning and using later on
-		fpath := filepath.Join(dest, f.Name)
+		fpath := filepath.Join(target, f.Name)
 
 		// Check for ZipSlip.
-		if !strings.HasPrefix(fpath, path.Join(filepath.Clean(dest), string(os.PathSeparator))) {
+		if !strings.HasPrefix(fpath, path.Join(filepath.Clean(target), string(os.PathSeparator))) {
 			return filenames, fmt.Errorf("%s: illegal file path", fpath)
 		}
 
@@ -251,6 +260,15 @@ func Unzip(src string, dest string) ([]string, error) {
 }
 
 func ZipSource(source, target string) error {
+	// Ensure we are only reading files from our executable and not where the terminal is executing from.
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	execDirPath := path.Dir(execPath)
+	source = filepath.Join(execDirPath, source)
+	target = filepath.Join(execDirPath, target)
+
 	// 1. Create a ZIP file and zip.Writer
 	f, err := os.Create(target)
 	if err != nil {

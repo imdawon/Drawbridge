@@ -472,9 +472,8 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	emissaryZipPath := path.Join(emissaryDownloadFolder, emissaryClientFilename)
 	// Unzip the zip file into the bundle_tmp directory.
 	// We will be zipping up the contents of the ./bundle_tmp directory later.
-	fullEmissaryZipPath := utils.CreateDrawbridgeFilePath(emissaryZipPath)
-	slog.Debug("unzipping emissary zip file from github...", slog.Any("Path", fullEmissaryZipPath))
-	_, err = utils.Unzip(fullEmissaryZipPath, utils.CreateDrawbridgeFilePath(bundleTmpFolderPath))
+	slog.Debug("unzipping emissary zip file from github...", slog.Any("Path", emissaryZipPath))
+	_, err = utils.Unzip(emissaryZipPath, bundleTmpFolderPath)
 	if err != nil {
 		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("unable to unzip Emissary client downloaded from GitHub: %s", err)))
 		return nil, err
@@ -508,7 +507,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	// return the file contents rather than writing to disk by default.
 	// there are tons of situations where we'd prefer to just hand off the bytes to the Drawbridge admin in the
 	// form of a file.
-	utils.ZipSource(utils.CreateDrawbridgeFilePath(bundleTmpFolderPath), utils.CreateDrawbridgeFilePath(bundledFilename))
+	utils.ZipSource(bundleTmpFolderPath, bundledFilename)
 
 	// Serve to Drawbridge admin
 	slog.Debug("reading bundledemissary output file to send back to admin...")
