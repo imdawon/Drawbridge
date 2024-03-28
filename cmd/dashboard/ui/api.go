@@ -215,7 +215,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 
 		services, err := f.DB.GetAllServices()
 		if err != nil {
-			log.Fatalf("Could not get all services: %s", err)
+			slog.Error("Could not get all services: %s", err)
 		}
 		templates.GetServices(services).Render(r.Context(), w)
 
@@ -238,12 +238,12 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		}
 		id, err := strconv.Atoi(idString)
 		if err != nil {
-			log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
+			slog.Error("Error converting idString %s to int %d: %s", idString, id, err)
 		}
 
 		service, err := f.DB.GetServiceById(int64(id))
 		if err != nil {
-			log.Fatalf("Could not get service: %s", err)
+			slog.Error("Could not get service: %s", err)
 		}
 		templates.EditService(service).Render(r.Context(), w)
 	})
@@ -253,7 +253,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	r.Get("/services", func(w http.ResponseWriter, r *http.Request) {
 		services, err := f.DB.GetAllServices()
 		if err != nil {
-			log.Fatalf("Could not get all services: %s", err)
+			slog.Error("Could not get all services: %s", err)
 		}
 		templates.GetServices(services).Render(r.Context(), w)
 	})
@@ -294,12 +294,12 @@ func (f *Controller) handleGetService(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
+		slog.Error("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 
 	service, err := f.DB.GetServiceById(int64(id))
 	if err != nil {
-		log.Fatalf("Could not get service: %s", err)
+		slog.Error("Could not get service: %s", err)
 	}
 	templates.GetService(service).Render(r.Context(), w)
 }
@@ -312,7 +312,7 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
+		slog.Error("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 
 	r.ParseForm()
@@ -322,16 +322,16 @@ func (f *Controller) handleEditService(w http.ResponseWriter, r *http.Request) {
 
 	err = f.DB.UpdateService(&newService, int64(id))
 	if err != nil {
-		log.Fatalf("Could not update service: %s", err)
+		slog.Error("Could not update service: %s", err)
 	}
 
 	go f.DrawbridgeAPI.AddNewProtectedService(newService)
 	if err != nil {
-		log.Fatalf("Failed to start Protected Service after it was edited by a Drawbridge admin: %s", err)
+		slog.Error("Failed to start Protected Service after it was edited by a Drawbridge admin: %s", err)
 	}
 	services, err := f.DB.GetAllServices()
 	if err != nil {
-		log.Fatalf("Could not get all services: %s", err)
+		slog.Error("Could not get all services: %s", err)
 	}
 	templates.GetServices(services).Render(r.Context(), w)
 }
@@ -344,11 +344,11 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	}
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		log.Fatalf("Error converting idString %s to int %d: %s", idString, id, err)
+		slog.Error("Error converting idString %s to int %d: %s", idString, id, err)
 	}
 	err = f.DB.DeleteService(id)
 	if err != nil {
-		log.Fatalf("Could not delete service from database: %s", err)
+		slog.Error("Could not delete service from database: %s", err)
 		// TODO
 		// render error deleting service template here.
 	}
@@ -358,7 +358,7 @@ func (f *Controller) handleDeleteService(w http.ResponseWriter, r *http.Request)
 	}
 	services, err := f.DB.GetAllServices()
 	if err != nil {
-		log.Fatalf("Could not get all services: %s", err)
+		slog.Error("Could not get all services: %s", err)
 	}
 	templates.GetServices(services).Render(r.Context(), w)
 }

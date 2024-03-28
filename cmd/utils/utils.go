@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net"
 	"os"
@@ -19,7 +18,7 @@ func SaveFile(fileName string, fileContents string, relativePath string) error {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	relativePath = filepath.Join(execDirPath, relativePath)
@@ -62,7 +61,7 @@ func SaveFileByte(fileName string, fileContents []byte, relativePath string) err
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	relativePath = filepath.Join(execDirPath, relativePath)
@@ -81,7 +80,7 @@ func SaveFileByte(fileName string, fileContents []byte, relativePath string) err
 
 		err := os.Mkdir(relativePath, os.ModePerm)
 		if err != nil {
-			log.Fatalf("Error creating file on path %s/%s: %s", relativePath, fileName, err)
+			slog.Error("Error creating file on path %s/%s: %s", relativePath, fileName, err)
 		}
 	}
 
@@ -102,7 +101,7 @@ func SaveFileByte(fileName string, fileContents []byte, relativePath string) err
 func DeleteDirectory(relativePath string) error {
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	fullPath := filepath.Join(execDirPath, relativePath)
@@ -119,7 +118,7 @@ func FileExists(pathWithFilename string) bool {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	fullFilePath := filepath.Join(execDirPath, pathWithFilename)
@@ -133,7 +132,7 @@ func ReadFile(pathWithFilename string) *[]byte {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	fullFilePath := filepath.Join(execDirPath, pathWithFilename)
@@ -195,7 +194,7 @@ func Unzip(source string, target string) ([]string, error) {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	source = filepath.Join(execDirPath, source)
@@ -256,7 +255,7 @@ func ZipSource(source, target string) error {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	source = filepath.Join(execDirPath, source)
@@ -323,7 +322,7 @@ func CreateDrawbridgeFilePath(relativePathWithFilename string) string {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
 	fullFilePath := filepath.Join(execDirPath, relativePathWithFilename)
