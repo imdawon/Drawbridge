@@ -459,6 +459,8 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	slog.Debug("verified file")
 	// Save Emissary .zip file contents to disk
 	bundleTmpFolderPath := "./bundle_tmp"
+	// Create temporary directory used for placing Emissary files to zip up for use as the downloadable Emissary Bundle.
+	os.Mkdir(utils.CreateDrawbridgeFilePath(bundleTmpFolderPath), os.ModePerm)
 	emissaryDownloadFolder := "./emissary_download_scratch"
 	utils.SaveFileByte(emissaryClientFilename, emissaryReleaseBody, emissaryDownloadFolder)
 	// Save Emissary .zip .asc file contents to disk
@@ -475,7 +477,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	slog.Debug("unzipping emissary zip file from github...", slog.Any("Path", emissaryZipPath))
 	_, err = utils.Unzip(emissaryZipPath, bundleTmpFolderPath)
 	if err != nil {
-		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("unable to unzip Emissary client downloaded from GitHub: %s", err)))
+		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("unable to unzip Emissary client downloaded from GitHub: %w", err)))
 		return nil, err
 	}
 	// Generate and save the mTLS key(s) and cert
