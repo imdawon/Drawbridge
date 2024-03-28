@@ -13,7 +13,7 @@ import (
 
 // Send daily anonymized ping to measure a rough user count.
 // Drawbridge will send a different ping value each day.
-func DAUPing(db *persistence.SQLiteRepository) {
+func DAUPing(db *persistence.SQLiteRepository) error {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 		Transport: &http.Transport{
@@ -36,7 +36,12 @@ func DAUPing(db *persistence.SQLiteRepository) {
 	if resp != nil {
 		slog.Debug("DAU Ping", slog.String("Upload Result", resp.Status))
 	} else {
-		slog.Error("DAU Ping - Upload Failed - No Response")
+		timeUntilNextRetry := time.Until(time.Now().Add(time.Minute * 30))
+		slog.Debug("DAU Ping", slog.Any("Retrying in", timeUntilNextRetry))
+		time.AfterFunc(timeUntilNextRetry, func() {
+			DAUPing(db)
+		})
+		return nil
 	}
 	newPingTimestamp := time.Now()
 	newPingTime := newPingTimestamp.Format(time.RFC3339)
@@ -52,4 +57,5 @@ func DAUPing(db *persistence.SQLiteRepository) {
 		DAUPing(db)
 	})
 
+	return nil
 }

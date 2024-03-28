@@ -144,7 +144,9 @@ func main() {
 				// We haven't waited 24 hours since our last DAU ping, so we need to schedule the future time
 				// to do one.
 			} else {
-				time.AfterFunc(time.Until(lastPingTimestamp.AddDate(0, 0, 1)), func() { analytics.DAUPing(db) })
+				nextTimeToPing := time.Until(lastPingTimestamp.AddDate(0, 0, 1))
+				slog.Debug("DAU Ping", slog.Any("Next Ping Time", nextTimeToPing))
+				time.AfterFunc(nextTimeToPing, func() { analytics.DAUPing(db) })
 			}
 			// kick off DAU pings as it has been enabled but we can't get the latest ping timestamp.
 		} else {
