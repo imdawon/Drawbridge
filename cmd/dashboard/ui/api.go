@@ -62,17 +62,22 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			return
 		}
 		fileContents := bundledFile.Contents
-		w.WriteHeader(http.StatusOK)
-		// Set the appropriate headers for the file download
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, bundledFile.Name))
-		w.Header().Set("Content-Type", "application/zip")
-		w.Header().Set("Content-Length", string(len(*fileContents)))
+		if fileContents != nil {
+			w.WriteHeader(http.StatusOK)
+			// Set the appropriate headers for the file download
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, bundledFile.Name))
+			w.Header().Set("Content-Type", "application/zip")
+			w.Header().Set("Content-Length", string(len(*fileContents)))
 
-		// Write the file bytes to the HTTP response
-		_, err = w.Write(*fileContents)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			// Write the file bytes to the HTTP response
+			_, err = w.Write(*fileContents)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, `<span class="error">Error Creating Emissary Bundle: Nil File Contents. Please go back and try again.</span>`, err)
 		}
 	})
 

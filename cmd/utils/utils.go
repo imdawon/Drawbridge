@@ -194,22 +194,23 @@ func CopyFile(filePath string, destinationPath string) error {
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
 func Unzip(src string, dest string) ([]string, error) {
-
 	var filenames []string
 
 	r, err := zip.OpenReader(src)
 	if err != nil {
-		return filenames, err
+		slog.Error("Unzip File", slog.Any("Error", err))
+		return filenames, fmt.Errorf("opening zip file failed: %w", err)
 	}
 	defer r.Close()
 
+	slog.Debug("iterating over zip files to unzip...")
 	for _, f := range r.File {
 
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
 
 		// Check for ZipSlip.
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+		if !strings.HasPrefix(fpath, path.Join(filepath.Clean(dest), string(os.PathSeparator))) {
 			return filenames, fmt.Errorf("%s: illegal file path", fpath)
 		}
 
@@ -223,17 +224,17 @@ func Unzip(src string, dest string) ([]string, error) {
 
 		// Make File
 		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-			return filenames, err
+			return filenames, fmt.Errorf("unzip mkdirall failed: %w", err)
 		}
 
 		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
-			return filenames, err
+			return filenames, fmt.Errorf("unzip open destination filename failed: %w", err)
 		}
 
 		rc, err := f.Open()
 		if err != nil {
-			return filenames, err
+			return filenames, fmt.Errorf("open zip file failed: %w", err)
 		}
 
 		_, err = io.Copy(outFile, rc)
@@ -243,7 +244,7 @@ func Unzip(src string, dest string) ([]string, error) {
 		rc.Close()
 
 		if err != nil {
-			return filenames, err
+			return filenames, fmt.Errorf("io copy failed: %w", err)
 		}
 	}
 	return filenames, nil
