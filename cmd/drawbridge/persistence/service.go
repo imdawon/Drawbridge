@@ -24,7 +24,7 @@ func (r *SQLiteRepository) MigrateServices() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS services(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL,
 		description TEXT,
 		host TEXT NOT NULL,
 		port INTEGER NOT NULL
