@@ -37,6 +37,11 @@ func (c *CA) SetupCertificates() (err error) {
 	serverCertExists := utils.FileExists("ca/server-cert.crt")
 	serverKeyExists := utils.FileExists("ca/server-key.key")
 
+	caCertPath := utils.CreateDrawbridgeFilePath("./ca/ca.crt")
+	caKeyPath := utils.CreateDrawbridgeFilePath("./ca/ca.key")
+	serverCertPath := utils.CreateDrawbridgeFilePath("./ca/ca.crt")
+	serverKeyPath := utils.CreateDrawbridgeFilePath("./ca/ca.key")
+
 	// Avoid generating new certificates and keys because we already have. Return TLS configs with the existing files.
 	if caCertContents != nil && serverCertExists && serverKeyExists && caPrivKeyContents != nil {
 		slog.Info("TLS Certs & Keys already exist. Loading them from disk...")
@@ -44,7 +49,7 @@ func (c *CA) SetupCertificates() (err error) {
 		certpool.AppendCertsFromPEM(*caCertContents)
 
 		// Combine the keypair for the CA certificate
-		caCert, err := tls.LoadX509KeyPair("ca/ca.crt", "ca/ca.key")
+		caCert, err := tls.LoadX509KeyPair(caCertPath, caKeyPath)
 		if err != nil {
 			log.Fatal("Error loading CA cert and key files: ", err)
 		}
@@ -61,7 +66,7 @@ func (c *CA) SetupCertificates() (err error) {
 			log.Fatal("Error parsing CA cert: ", err)
 		}
 		// Read the key pair to create certificate
-		serverCert, err := tls.LoadX509KeyPair("ca/server-cert.crt", "ca/server-key.key")
+		serverCert, err := tls.LoadX509KeyPair(serverCertPath, serverKeyPath)
 		if err != nil {
 			log.Fatal("Error loading server cert and key files: ", err)
 		}
