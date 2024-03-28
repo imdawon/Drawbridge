@@ -5,8 +5,8 @@ templ GetOnboardingModal() {
             <div class="modal-underlay"></div>
             <form class="modal-content" hx-post="/admin/post/config" hx-target="#listener-address">
                 <h2>Set Up Drawbridge</h2>
-                <label for="listener-address">What IP should Drawbridge listen on?</label>
-                <p class="note-text">Note: this is the address your Emissary clients will use to connect to Drawbridge. It can be a LAN or WAN address.</p>
+                <label for="listener-address">What IP should Drawbridge be accessible from?</label>
+                <p class="note-text">Note: this is the address your Emissary clients will use to connect to Drawbridge. It can be your LAN (local) or WAN (accessible outside your network) address.</p>
                 <input name="listener-address" type="text" id="listener-address" placeholder="50.42.165.84"/>
                 <label for="enable-ping">
                     <input type="checkbox" id="enable-ping" name="enable-ping" checked />
