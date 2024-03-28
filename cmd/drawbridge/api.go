@@ -18,7 +18,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"math/big"
 	"net"
@@ -58,7 +57,7 @@ type EmissaryConfig struct {
 func (d *Drawbridge) handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
-		log.Fatalf("error reading client auth request: %s", err)
+		slog.Error("error reading client auth request: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "server error!")
 	}
@@ -66,7 +65,7 @@ func (d *Drawbridge) handleClientAuthorizationRequest(w http.ResponseWriter, req
 	clientAuth := authorization.EmissaryRequest{}
 	err = json.Unmarshal(body, &clientAuth)
 	if err != nil {
-		log.Fatalf("error unmarshalling client auth request: %s", err)
+		slog.Error("error unmarshalling client auth request: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "server error!")
 	}
@@ -96,14 +95,14 @@ func (d *Drawbridge) SetUpEmissaryAPI(hostAndPort string) {
 	slog.Info(fmt.Sprintf("Starting Emissary API server on http://%s", server.Addr))
 
 	// We pass "" into listen and serve since we have already configured cert and keyfile for server.
-	log.Fatalf("Error starting Emissary API server: %s", server.ListenAndServeTLS("", ""))
+	slog.Error("Error starting Emissary API server: %s", server.ListenAndServeTLS("", ""))
 }
 
 func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []services.ProtectedService) {
 	certificates.CertificateAuthority = &certificates.CA{DB: d.DB}
 	err := certificates.CertificateAuthority.SetupCertificates()
 	if err != nil {
-		log.Fatalf("Error setting up root CA: %s", err)
+		slog.Error("Error setting up root CA: %s", err)
 	}
 	// Set certificate authority for Drawbridge. We access the CA from Drawbridge from this point on.
 	d.CA = certificates.CertificateAuthority
