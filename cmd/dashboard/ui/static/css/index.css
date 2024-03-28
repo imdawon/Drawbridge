@@ -1,3 +1,5 @@
+@font-face { font-family: 'DIN Alternate'; src: url('../fonts/DINAlternate-Bold.woff'); } 
+
 * {
     box-sizing: border-box;
 }
@@ -14,7 +16,7 @@ a:hover {
 body {
     background-color: #0A1715;
     color: #ffffff;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'DIN Alternate', sans-serif;
 }
 
 #config-modal-header {
@@ -38,7 +40,11 @@ body {
 	margin-top: 25px;
 }
 
-#protected-services, #protected-services h2 {
+#protected-services {
+	margin-top: 40px;
+}
+
+#services h2, div.section {
 	margin-top: 60px;
 }
 
