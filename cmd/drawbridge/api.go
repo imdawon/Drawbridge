@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -263,15 +264,18 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			// Print the incoming data - for debugging
 			fmt.Printf("Received: %s\n", buf)
 
-			var emissaryRequestValue string
+			var emissaryRequestedServiceId string
 			emissaryRequestPayload := string(buf[:])
 			if strings.Contains(emissaryRequestPayload, "PS_CONN") {
-				emissaryRequestValue = strings.TrimPrefix(emissaryRequestPayload, "PS_CONN")
-				emissaryRequestValue = strings.TrimSpace(emissaryRequestValue)
+				emissaryRequestedServiceId = strings.TrimPrefix(emissaryRequestPayload, "PS_CONN")
+				emissaryRequestedServiceId = emissaryRequestedServiceId[:3]
 				// May be used later after we standardize how and when to read the tcp connection into the buf above.
 				// d.getRequestProtectedServiceName(clientConn)
-
-				requestedServiceAddress := d.getProtectedServiceAddressByName(emissaryRequestValue)
+				emissaryRequestedServiceIdNum, err := strconv.Atoi(emissaryRequestedServiceId)
+				if err != nil {
+					slog.Error("PS_CONN Handler", slog.Any("Error converting first byte of emissary request service id to int", err))
+				}
+				requestedServiceAddress := d.getProtectedServiceAddressById(emissaryRequestedServiceIdNum)
 
 				// Proxy traffic to the actual service the Emissary client is trying to connect to.
 				var dialer net.Dialer
@@ -294,7 +298,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				// d.ProtectedServices
 				var serviceList string
 				for _, value := range d.ProtectedServices {
-					serviceList += fmt.Sprintf("%s,", value.Service.Name)
+					serviceList += fmt.Sprintf("%d%s,", value.Service.ID, value.Service.Name)
 				}
 				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s", serviceList)
 				clientConn.Write([]byte(serviceConnectCommand))
@@ -312,9 +316,9 @@ func (d *Drawbridge) getRequestProtectedServiceName(clientConn net.Conn) (string
 	return string(bytes[:]), nil
 }
 
-func (d *Drawbridge) getProtectedServiceAddressByName(protectedServiceName string) string {
+func (d *Drawbridge) getProtectedServiceAddressById(protectedServiceId int) string {
 	for _, service := range d.ProtectedServices {
-		if service.Service.Name == protectedServiceName {
+		if service.Service.ID == int64(protectedServiceId) {
 			protectedService := d.ProtectedServices[service.Service.ID]
 			return fmt.Sprintf("%s:%d", protectedService.Service.Host, protectedService.Service.Port)
 		}
