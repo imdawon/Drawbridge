@@ -329,3 +329,7 @@ func CreateDrawbridgeFilePath(relativePathWithFilename string) string {
 
 	return fullFilePath
 }
+
+func PadWithZeros(num int) string {
+	return fmt.Sprintf("%03d", num)
+}
