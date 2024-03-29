@@ -264,11 +264,11 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			// Print the incoming data - for debugging
 			fmt.Printf("Received: %s\n", buf)
 
-			var emissaryRequestedServiceId string
 			emissaryRequestPayload := string(buf[:])
 			if strings.Contains(emissaryRequestPayload, "PS_CONN") {
-				emissaryRequestedServiceId = strings.TrimPrefix(emissaryRequestPayload, "PS_CONN")
-				emissaryRequestedServiceId = emissaryRequestedServiceId[:3]
+				emissaryRequestedServiceSplit := strings.TrimPrefix(emissaryRequestPayload, "PS_CONN")
+				emissaryRequestedServiceSplit = strings.TrimSpace(emissaryRequestedServiceSplit)
+				emissaryRequestedServiceId := emissaryRequestedServiceSplit[:3]
 				// May be used later after we standardize how and when to read the tcp connection into the buf above.
 				// d.getRequestProtectedServiceName(clientConn)
 				emissaryRequestedServiceIdNum, err := strconv.Atoi(emissaryRequestedServiceId)
@@ -279,7 +279,28 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 
 				// Proxy traffic to the actual service the Emissary client is trying to connect to.
 				var dialer net.Dialer
-				resourceConn, err := dialer.Dial("tcp", requestedServiceAddress)
+				var resourceConn net.Conn
+				const maxRetries = 20
+				retries := 0
+				for {
+					resourceConn, err = establishConnection(dialer, requestedServiceAddress)
+					if err == nil {
+						// Connection established successfully, handle it
+						break
+					}
+
+					retries++
+					if retries >= maxRetries {
+						// Maximum retries reached, handle the error
+						slog.Error("Failed to establish connection after", maxRetries, "retries")
+						return
+					}
+
+					// Wait for a short duration before retrying
+					slog.Error("Failed to establish connection to Protected Service. Retrying in 500ms...")
+					time.Sleep(500 * time.Millisecond)
+				}
+
 				// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
 				// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
 				if err != nil {
@@ -296,15 +317,26 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			} else {
 				// On a new connection, write available services to TCP connection so Emissary can know which
 				// d.ProtectedServices
+
 				var serviceList string
 				for _, value := range d.ProtectedServices {
-					serviceList += fmt.Sprintf("%d%s,", value.Service.ID, value.Service.Name)
+					// We pad the service id with zeros as we want a fixed-width id for easy parsing. This will allow support for up to 1000 Protected Services.
+					serviceList += fmt.Sprintf("%s%s,", utils.PadWithZeros(int(value.Service.ID)), value.Service.Name)
 				}
 				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s", serviceList)
 				clientConn.Write([]byte(serviceConnectCommand))
 			}
 		}(conn)
 	}
+}
+
+func establishConnection(dialer net.Dialer, serviceAddress string) (net.Conn, error) {
+	resourceConn, err := dialer.Dial("tcp", serviceAddress)
+	if err == nil {
+		return resourceConn, nil
+	}
+	return nil, err
+
 }
 
 func (d *Drawbridge) getRequestProtectedServiceName(clientConn net.Conn) (string, error) {
