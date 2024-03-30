@@ -33,8 +33,10 @@
       </header>
       <div id="services" class="section">
         <h2>Protect new Service</h2>
-        <p>A Protected Service allows you to secure your self-hosted applications (e.g., a Minecraft server) with Drawbridge. 
-          <p>To connect to a Protected Service, you'll need to use the Emissary Client, which will securely route your traffic through Drawbridge to the desired application.</p>
+        <p>A Protected Service is a link between your self-hosted application (e.g., a Minecraft server) and Drawbridge.</p>
+        <p>Once created, any authorized Emissary client can access it when connecting to Drawbridge.</p>
+          <p>To connect to a Protected Service, you'll need to use the Emissary client, which will securely route your traffic through Drawbridge to the desired application.</p>
+          <p>You can download the latest Emissary client in the Emissary Clients tab on the left menu bar.</p>
         <form id="create-protected-service" hx-post="/service/create" hx-target="#protected-services-list">
           <label for="service-name">Name</label>
           <input type="text" id="service-name" name="service-name" placeholder="My Minecraft Server">
