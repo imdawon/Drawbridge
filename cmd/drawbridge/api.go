@@ -262,7 +262,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			// Trim unused buffer null terminating characters.
 			buf = bytes.Trim(buf, "\x00")
 			// Print the incoming data - for debugging
-			fmt.Printf("Received: %s\n", buf)
+			slog.Info("Emissary Connection", slog.Any("Message Received", buf))
 
 			emissaryRequestPayload := string(buf[:])
 			if strings.Contains(emissaryRequestPayload, "PS_CONN") {
