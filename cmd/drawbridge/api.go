@@ -307,7 +307,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 					slog.Error("Failed to tcp dial to actual target service", err)
 				}
 
-				slog.Info(fmt.Sprintf("TCP Accept from Emissary client: %s\n", clientConn.RemoteAddr()))
+				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s\n", clientConn.RemoteAddr()))
 				// Copy data back and from client and server.
 				go io.Copy(resourceConn, clientConn)
 				io.Copy(clientConn, resourceConn)
