@@ -27,6 +27,7 @@
         <h2>Emissary Bundle</h2>
         <p>An Emissary Bundle is a preconfigured package that allows easy connection to your Drawbridge server.</p>
         <p>Share this bundle with your users, and they can unzip and launch Emissary without any manual setup required.</p>
+        <p>Note: Each Emissary Bundle contains a unique mTLS key and certificate, so make sure to generate a new Bundle for each machine that runs Emissary.</p>
         <form id="bundle-form" method="get" action="/admin/get/emissary/bundle">
           <label for="emissary-platform">Platform</label>
           <select id="service-name" name="emissary-platform" placeholder="macOS">
