@@ -12,9 +12,9 @@ Even if there's none of that, it doesn't really feel like you're sticking it to 
 ## What to do about it
 Emissary and Drawbridge solve this problem. 
 
-Drawbridge is a reverse proxy with configurable authentication and attestation requirements to allow machines running [Emissary desktop client](https://github.com/dhens/Emissary-Daemon) to access protected services.
+Drawbridge is a reverse proxy which only allow machines running [Emissary desktop client](https://github.com/dhens/Emissary-Daemon) to access your self-hosted services.
 
-Add Emissary to as many of your machines as you want, expose the Drawbridge reverse proxy server with required authentication details, _instead_ of your insecure web application or "movie server", and bam: your service is only accessible from Emissary clients.
+Add Emissary to as many of your machines as you want via the Emissary Bundles feature, expose the Drawbridge reverse proxy server port on your router, _instead_ of directly exposong your insecure web application or "movie server", and bam: your service is only accessible from authorized Emissary clients.
 
 [Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90--Minecraft-Server)
 
@@ -30,7 +30,7 @@ A Protected Service can be any networked application listening on a given port, 
 You can then access this Protected Service by connecting to your Drawbridge server through the Emissary client. Emissary will list each service available once connected to Drawbridge and list their IP or domain names to be able to access them.
 
 
-## Goals
+## Project Goals
 The goal of the Emissary / Drawbridge solution is rapidly and easily exposing a self-hosted service to the internet for access by authorized clients.
 
 While we want simplicity out of the box, that is not to say that you cannot enforce stricter policies for required clients. More features in the future will support additional identity requirements, but will require an admin to conduct additioal configuration of Drawbridge for such services.
