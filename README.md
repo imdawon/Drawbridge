@@ -1,7 +1,7 @@
 # Drawbridge
 ![Drawbridge Logo](./drawbridge_logo.jpg)
 
-[Quick Start Guide: Protect your self-hosted servers with Drawbridge in 5 minutes or less](https://github.com/dhens/Drawbridge/wiki/Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90--Minecraft-Server)
+[Quick Start Guide: Protect your self-hosted servers with Drawbridge in 5 minutes or less](https://github.com/dhens/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
 
 ## The state of self-hosting 
 Self-hosting is a nightmare. If you're naive, you blow a hole in your home router to allow access to whatever resource you want to have accessible via the internet. 
@@ -16,7 +16,7 @@ Drawbridge is a reverse proxy which only allow machines running [Emissary deskto
 
 Add Emissary to as many of your machines as you want via the Emissary Bundles feature, expose the Drawbridge reverse proxy server port on your router, _instead_ of directly exposong your insecure web application or "movie server", and bam: your service is only accessible from authorized Emissary clients.
 
-[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90--Minecraft-Server)
+[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
 
  ***If things still aren't working, please refer to our Troubleshooting guide.*** (not yet created)
 
