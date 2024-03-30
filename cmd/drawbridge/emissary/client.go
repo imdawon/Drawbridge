@@ -2,13 +2,13 @@ package emissary
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // A device that can be allowed to access resources beyond Drawbridge.
 type EmissaryClient struct {
-	ID                             uuid.UUID
+	// TODO
+	// make a uuid
+	ID                             string
 	Hostname                       string
 	OperatingSystemVersion         string
 	LastSuccessfulPolicyEvaluation time.Time

@@ -9,8 +9,6 @@ require (
 
 )
 
-require github.com/google/uuid v1.6.0
-
 require (
 	github.com/ProtonMail/gopenpgp/v3 v3.0.0-alpha.1-proton
 	github.com/go-chi/chi v1.5.5
