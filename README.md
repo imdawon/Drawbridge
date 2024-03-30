@@ -18,14 +18,12 @@ Add Emissary to as many of your machines as you want via the Emissary Bundles fe
 
 [Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
 
- ***If things still aren't working, please refer to our Troubleshooting guide.*** (not yet created)
-
 ## Example Use-Case
 
 #### HTTP & TCP / UDP Protected Services
 Creating a Protected Service in the Drawbridge dashboard creates a connection between Drawbridge and the service you want to access remotely.
 
-A Protected Service can be any networked application listening on a given port, like a Minecraft Server or an HTTP server.
+A Protected Service can be any networked application listening on a given port, like a Minecraft Server or an HTTP server (currently limited to TCP).
 
 You can then access this Protected Service by connecting to your Drawbridge server through the Emissary client. Emissary will list each service available once connected to Drawbridge and list their IP or domain names to be able to access them.
 
