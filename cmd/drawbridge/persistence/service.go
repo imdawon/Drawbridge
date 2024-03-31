@@ -7,7 +7,7 @@ import (
 	"log"
 	"log/slog"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type SQLiteRepository struct {
@@ -143,7 +143,7 @@ func (r *SQLiteRepository) DeleteService(id int) error {
 }
 
 func OpenDatabaseFile(filename string) *sql.DB {
-	db, err := sql.Open("sqlite3", filename)
+	db, err := sql.Open("sqlite", filename)
 	if err != nil {
 		log.Fatalf("Error opening sqlite db: %s", err)
 	}
