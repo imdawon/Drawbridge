@@ -8,11 +8,8 @@ import (
 func (r *SQLiteRepository) MigrateEmissaryClient() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS emissary_client(
-		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL UNIQUE,
-		description TEXT,
-		host TEXT NOT NULL,
-		port INTEGER NOT NULL
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT UNIQUE,
 	);
 	`
 
@@ -22,9 +19,9 @@ func (r *SQLiteRepository) MigrateEmissaryClient() error {
 
 func (r *SQLiteRepository) CreateNewEmissaryClient(client emissary.EmissaryClient) (*emissary.EmissaryClient, error) {
 	_, err := r.db.Exec(
-		"INSERT INTO emissary_client(id, hostname, operating_system_version, last_successful_policy_evaluation) values(?,?,?)",
+		"INSERT INTO emissary_client(name) values(?)",
 		client.ID,
-		client.Hostname,
+		client.Name,
 		client.OperatingSystemVersion,
 		client.LastSuccessfulPolicyEvaluation,
 	)
@@ -47,8 +44,7 @@ func (r *SQLiteRepository) GetEmissaryClientById(id int64) (*emissary.EmissaryCl
 	for rows.Next() {
 		if err := rows.Scan(
 			&client.ID,
-			&client.OperatingSystemVersion,
-			&client.LastSuccessfulPolicyEvaluation,
+			&client.Name,
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
 		}
@@ -61,9 +57,8 @@ func (r *SQLiteRepository) UpdateEmissaryClient(updated *emissary.EmissaryClient
 		return fmt.Errorf("the emissary client id supplied is invalid. unable to update emissary client row")
 	}
 	res, err := r.db.Exec(
-		"UPDATE emissary_client SET os_version = ?, last_successful_eval = ? WHERE id = ?",
-		updated.OperatingSystemVersion,
-		updated.LastSuccessfulPolicyEvaluation,
+		"UPDATE emissary_client SET name = ? WHERE id = ?",
+		updated.Name,
 		id,
 	)
 	if err != nil {

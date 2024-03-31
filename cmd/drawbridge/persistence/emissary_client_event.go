@@ -26,7 +26,7 @@ func (r *SQLiteRepository) InsertEmissaryClientEvent(client emissary.EmissaryCli
 	_, err := r.db.Exec(
 		"INSERT INTO emissary_client_event(id, hostname, operating_system_version, last_successful_policy_evaluation) values(?,?,?)",
 		client.ID,
-		client.Hostname,
+		client.Name,
 		client.OperatingSystemVersion,
 		client.LastSuccessfulPolicyEvaluation,
 	)
