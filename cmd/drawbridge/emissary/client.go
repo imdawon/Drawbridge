@@ -9,7 +9,7 @@ type EmissaryClient struct {
 	// TODO
 	// make a uuid
 	ID                             string
-	Hostname                       string
+	Name                           string
 	OperatingSystemVersion         string
 	LastSuccessfulPolicyEvaluation time.Time
 }
