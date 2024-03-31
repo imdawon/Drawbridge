@@ -10,6 +10,7 @@ func (r *SQLiteRepository) MigrateEmissaryClient() error {
 	CREATE TABLE IF NOT EXISTS emissary_client(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT UNIQUE,
+		revoked INTEGER
 	);
 	`
 
@@ -22,8 +23,7 @@ func (r *SQLiteRepository) CreateNewEmissaryClient(client emissary.EmissaryClien
 		"INSERT INTO emissary_client(name) values(?)",
 		client.ID,
 		client.Name,
-		client.OperatingSystemVersion,
-		client.LastSuccessfulPolicyEvaluation,
+		client.Revoked,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error creating new emissary client: %s", err)
@@ -31,6 +31,27 @@ func (r *SQLiteRepository) CreateNewEmissaryClient(client emissary.EmissaryClien
 
 	return &client, nil
 
+}
+
+func (r *SQLiteRepository) GetAllEmissaryClients() ([]*emissary.EmissaryClient, error) {
+	rows, err := r.db.Query("SELECT * FROM emissary_client")
+	if err != nil {
+		return nil, fmt.Errorf("error getting all emissary clients: %s", err)
+	}
+	defer rows.Close()
+
+	var clients []*emissary.EmissaryClient
+	var client emissary.EmissaryClient
+	for rows.Next() {
+		if err := rows.Scan(
+			&client.ID,
+			&client.Name,
+		); err != nil {
+			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
+		}
+		clients = append(clients, &client)
+	}
+	return clients, nil
 }
 
 func (r *SQLiteRepository) GetEmissaryClientById(id int64) (*emissary.EmissaryClient, error) {

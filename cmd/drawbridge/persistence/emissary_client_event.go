@@ -8,8 +8,8 @@ import (
 func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS emissary_client_event(
-		id TEXT PRIMARY KEY,
-		device_id TEXT,
+		id TEXT PRIMARY KEY AUTOINCREMENT,
+		device_id TEXT NOT NULL,
 		type TEXT NOT NULL,
 		target_service TEXT,
 		connection_type TEXT,
@@ -22,37 +22,98 @@ func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {
 	return err
 }
 
-func (r *SQLiteRepository) InsertEmissaryClientEvent(client emissary.EmissaryClient) (*emissary.EmissaryClient, error) {
+var queryLatestDeviceEventForEachDevice = `
+SELECT
+    c.id AS device_id,
+    c.name AS device_name,
+    e.type,
+    e.target_service,
+    e.connection_type,
+    e.timestamp
+FROM
+    (
+        SELECT
+            device_id,
+            type,
+            target_service,
+            connection_type,
+            timestamp,
+            ROW_NUMBER() OVER (PARTITION BY device_id ORDER BY timestamp DESC) AS rn
+        FROM emissary_client_event
+        WHERE device_id IN (?)
+    ) e
+    JOIN emissary_client c ON e.device_id = c.id
+WHERE
+    e.rn = 1;
+	`
+
+func (r *SQLiteRepository) InsertEmissaryClientEvent(event emissary.Event) (*emissary.Event, error) {
 	_, err := r.db.Exec(
-		"INSERT INTO emissary_client_event(id, hostname, operating_system_version, last_successful_policy_evaluation) values(?,?,?)",
-		client.ID,
-		client.Name,
-		client.OperatingSystemVersion,
-		client.LastSuccessfulPolicyEvaluation,
+		"INSERT INTO emissary_client_event(id, device_id, device_ip, type, target_service, connection_type, timestamp) values(?,?,?,?,?,?,?)",
+		&event.ID,
+		&event.DeviceID,
+		&event.DeviceIP,
+		&event.Type,
+		&event.TargetService,
+		&event.ConnectionType,
+		&event.Timestamp,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error creating new emissary client: %s", err)
+		return nil, fmt.Errorf("error inserting emissary event: %s", err)
 	}
 
-	return &client, nil
+	return &event, nil
 }
 
-func (r *SQLiteRepository) GetRecentEventsByDeviceId(deviceID int64, recordCount int64) (*emissary.EmissaryClient, error) {
-	rows, err := r.db.Query("SELECT * FROM emissary_client_event WHERE emissary_client_id = ? ORDER BY timestamp DESC LIMIT = ?", deviceID, recordCount)
+// Gets the latest event for each device to use in the Device Fleet view in the dashboard.
+// Returns a map with the key being the device id and value being the event itself.
+func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []string) (map[string]emissary.Event, error) {
+	deviceIDsLen := len(deviceIDs)
+	if deviceIDsLen == 0 {
+		return nil, fmt.Errorf("no deviceIDs supplied to get latest event for each device id")
+	}
+	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceIDs)
 	if err != nil {
-		return nil, fmt.Errorf("error getting emissary client events for deviceID %d: %s", deviceID, err)
+		return nil, fmt.Errorf("error getting latest event for each emissary client: %s", err)
 	}
 	defer rows.Close()
 
-	var client emissary.EmissaryClient
+	var event emissary.Event
+	events := make(map[string]emissary.Event, deviceIDsLen)
 	for rows.Next() {
 		if err := rows.Scan(
-			&client.ID,
-			&client.OperatingSystemVersion,
-			&client.LastSuccessfulPolicyEvaluation,
+			&event.ID,
+			&event.DeviceID,
+			&event.DeviceIP,
+			&event.Type,
+			&event.TargetService,
+			&event.ConnectionType,
+			&event.Timestamp,
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
 		}
+		events[event.DeviceID] = event
 	}
-	return &client, nil
+	return events, nil
 }
+
+// Used for one device. Mainly used to calculate averages or a range-based result.
+// func (r *SQLiteRepository) GetRecentEventsByDeviceId(deviceID int64, recordCount int64) ([]emissary.Event, error) {
+// 	rows, err := r.db.Query("SELECT * FROM emissary_client_event WHERE emissary_client_id = ? ORDER BY timestamp DESC LIMIT = ?", deviceID, recordCount)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("error getting emissary client events for deviceID %d: %s", deviceID, err)
+// 	}
+// 	defer rows.Close()
+
+// 	var client emissary.EmissaryClient
+// 	for rows.Next() {
+// 		if err := rows.Scan(
+// 			&client.ID,
+// 			&client.OperatingSystemVersion,
+// 			&client.LastSuccessfulPolicyEvaluation,
+// 		); err != nil {
+// 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
+// 		}
+// 	}
+// 	return client, nil
+// }

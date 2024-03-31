@@ -258,6 +258,49 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		templates.GetServices(services).Render(r.Context(), w)
 	})
 
+	r.Get("/emissary/get/clients", func(w http.ResponseWriter, r *http.Request) {
+		clients, err := f.DB.GetAllEmissaryClients()
+		if err != nil {
+			slog.Error("error getting all emissary clients: %w", err)
+		}
+
+		var deviceIDs []string
+		for _, client := range clients {
+			deviceIDs = append(deviceIDs, client.ID)
+		}
+
+		latestClientEvents, err := f.DB.GetLatestEventForEachDeviceId(deviceIDs)
+		if err != nil {
+			slog.Error("error getting latest client events: %w", err)
+		}
+		templates.GetAllEmissaryClients(clients, latestClientEvents).Render(r.Context(), w)
+	})
+
+	r.Post("/emissary/post/client/{id}/revoke_certificate", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		newService := services.ProtectedService{}
+		decoder.Decode(&newService, r.Form)
+		// Rewrite a host input from the Drawbridge admin so we don't get errors trying to parse
+		// the "localhost" string as a net.IP.
+		if newService.Host == "localhost" {
+			newService.Host = "127.0.0.1"
+		}
+		newServiceWithId, err := f.DB.CreateNewService(newService)
+		if err != nil {
+			slog.Error("error creatng new service: %w", err)
+		}
+
+		services, err := f.DB.GetAllServices()
+		if err != nil {
+			slog.Error("Could not get all services: %s", err)
+		}
+		templates.GetServices(services).Render(r.Context(), w)
+
+		// Set up tcp reverse proxy that actually carries the client data to the target service.
+		go f.DrawbridgeAPI.AddNewProtectedService(*newServiceWithId)
+
+	})
+
 	// FOr testing, so we can access the html files we create
 	workDir, _ := os.Getwd()
 	if flagger.FLAGS.Env == "development" {
