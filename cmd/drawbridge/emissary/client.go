@@ -4,5 +4,5 @@ package emissary
 type EmissaryClient struct {
 	ID      string
 	Name    string
-	Revoked bool
+	Revoked uint8
 }

@@ -8,7 +8,7 @@ import (
 func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS emissary_client_event(
-		id TEXT PRIMARY KEY AUTOINCREMENT,
+		id TEXT PRIMARY KEY,
 		device_id TEXT NOT NULL,
 		type TEXT NOT NULL,
 		target_service TEXT,
@@ -72,7 +72,7 @@ func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []string) (ma
 	if deviceIDsLen == 0 {
 		return nil, fmt.Errorf("no deviceIDs supplied to get latest event for each device id")
 	}
-	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceIDs)
+	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceIDs[0])
 	if err != nil {
 		return nil, fmt.Errorf("error getting latest event for each emissary client: %s", err)
 	}
@@ -95,6 +95,33 @@ func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []string) (ma
 		events[event.DeviceID] = event
 	}
 	return events, nil
+}
+
+func (r *SQLiteRepository) GetLatestEventForDeviceId(deviceID string) (*emissary.Event, error) {
+	if len(deviceID) == 0 {
+		return nil, fmt.Errorf("no deviceIDs supplied to get latest event for each device id")
+	}
+	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting latest event for each emissary client: %s", err)
+	}
+	defer rows.Close()
+
+	var event emissary.Event
+	for rows.Next() {
+		if err := rows.Scan(
+			&event.ID,
+			&event.DeviceID,
+			&event.DeviceIP,
+			&event.Type,
+			&event.TargetService,
+			&event.ConnectionType,
+			&event.Timestamp,
+		); err != nil {
+			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
+		}
+	}
+	return &event, nil
 }
 
 // Used for one device. Mainly used to calculate averages or a range-based result.
