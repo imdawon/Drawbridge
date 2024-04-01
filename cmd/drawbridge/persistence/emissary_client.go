@@ -8,7 +8,7 @@ import (
 func (r *SQLiteRepository) MigrateEmissaryClient() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS emissary_client(
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id TEXT PRIMARY KEY,
 		name TEXT UNIQUE,
 		revoked INTEGER
 	);
@@ -20,7 +20,7 @@ func (r *SQLiteRepository) MigrateEmissaryClient() error {
 
 func (r *SQLiteRepository) CreateNewEmissaryClient(client emissary.EmissaryClient) (*emissary.EmissaryClient, error) {
 	_, err := r.db.Exec(
-		"INSERT INTO emissary_client(name) values(?)",
+		"INSERT INTO emissary_client(id, name, revoked) values(?, ?, ?)",
 		client.ID,
 		client.Name,
 		client.Revoked,
@@ -46,6 +46,7 @@ func (r *SQLiteRepository) GetAllEmissaryClients() ([]*emissary.EmissaryClient, 
 		if err := rows.Scan(
 			&client.ID,
 			&client.Name,
+			&client.Revoked,
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
 		}
@@ -54,10 +55,10 @@ func (r *SQLiteRepository) GetAllEmissaryClients() ([]*emissary.EmissaryClient, 
 	return clients, nil
 }
 
-func (r *SQLiteRepository) GetEmissaryClientById(id int64) (*emissary.EmissaryClient, error) {
+func (r *SQLiteRepository) GetEmissaryClientById(id string) (*emissary.EmissaryClient, error) {
 	rows, err := r.db.Query("SELECT * FROM emissary_client WHERE id = ?", id)
 	if err != nil {
-		return nil, fmt.Errorf("error getting emissary client id %d: %s", id, err)
+		return nil, fmt.Errorf("error getting emissary client id %s: %s", id, err)
 	}
 	defer rows.Close()
 
@@ -66,6 +67,7 @@ func (r *SQLiteRepository) GetEmissaryClientById(id int64) (*emissary.EmissaryCl
 		if err := rows.Scan(
 			&client.ID,
 			&client.Name,
+			&client.Revoked,
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
 		}
@@ -95,18 +97,42 @@ func (r *SQLiteRepository) UpdateEmissaryClient(updated *emissary.EmissaryClient
 
 }
 
-func (r *SQLiteRepository) DeleteEmissaryClient(id int) error {
-	res, err := r.db.Exec("DELETE FROM emissary_client WHERE id = ?", id)
+// Marks a device as revoked, which keeps it from being able to connect to Drawbridge at all.
+// We do this by adding the Emissary client certificate to Drawbridge's Certificate Revocation List.
+func (r *SQLiteRepository) RevokeEmissaryClient(id string) (*emissary.EmissaryClient, *emissary.Event, error) {
+	_, err := r.db.Exec("UPDATE emissary_client SET revoked = 1 WHERE id = ?", id)
 	if err != nil {
-		return fmt.Errorf("error deleting emissary client with id of %d: %s", id, err)
+		return nil, nil, fmt.Errorf("error unrevoking emissary client with id of %s: %s", id, err)
+
 	}
-	rowsAffected, err := res.RowsAffected()
+	client, err := r.GetEmissaryClientById(id)
 	if err != nil {
-		return err
+		return nil, nil, fmt.Errorf("error getting emissary client after unrevoking it: %w", err)
 	}
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("failed to delete emissary client")
+	event, err := r.GetLatestEventForDeviceId(client.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting latest event for revoked client: %w", err)
 	}
-	return err
+	return client, event, nil
+
+}
+
+// Marks a device as unrevoked, which allows it to connect to Drawbridge after not be allowed to.
+// We do this by removing the Emissary client certificate from the Drawbridge's Certificate Revocation List.
+func (r *SQLiteRepository) UnRevokeEmissaryClient(id string) (*emissary.EmissaryClient, *emissary.Event, error) {
+	_, err := r.db.Exec("UPDATE emissary_client SET revoked = 0 WHERE id = ?", id)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error unrevoking emissary client with id of %s: %s", id, err)
+	}
+
+	client, err := r.GetEmissaryClientById(id)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting emissary client after unrevoking it: %w", err)
+	}
+	event, err := r.GetLatestEventForDeviceId(client.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting latest event for revoked client: %w", err)
+	}
+	return client, event, nil
 }

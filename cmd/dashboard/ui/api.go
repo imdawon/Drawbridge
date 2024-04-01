@@ -4,6 +4,7 @@ import (
 	"dhens/drawbridge/cmd/analytics"
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
+	"dhens/drawbridge/cmd/drawbridge/emissary"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/drawbridge/services"
 	flagger "dhens/drawbridge/cmd/flags"
@@ -277,28 +278,38 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	})
 
 	r.Post("/emissary/post/client/{id}/revoke_certificate", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
-		newService := services.ProtectedService{}
-		decoder.Decode(&newService, r.Form)
-		// Rewrite a host input from the Drawbridge admin so we don't get errors trying to parse
-		// the "localhost" string as a net.IP.
-		if newService.Host == "localhost" {
-			newService.Host = "127.0.0.1"
+		idString := chi.URLParam(r, "id")
+		if idString == "" {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "Unable to revoke device with a blank id")
 		}
-		newServiceWithId, err := f.DB.CreateNewService(newService)
+		client := emissary.EmissaryClient{
+			ID: idString,
+		}
+		clientRes, event, err := f.DB.RevokeEmissaryClient(client.ID)
 		if err != nil {
-			slog.Error("error creatng new service: %w", err)
+			slog.Error("error revoking emissary client: %w", err)
+			fmt.Fprintf(w, "error revoking device")
 		}
 
-		services, err := f.DB.GetAllServices()
+		templates.GetEmissaryClient(clientRes, event).Render(r.Context(), w)
+	})
+
+	r.Post("/emissary/post/client/{id}/unrevoke_certificate", func(w http.ResponseWriter, r *http.Request) {
+		idString := chi.URLParam(r, "id")
+		if idString == "" {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "Unable to revoke device with a blank id")
+		}
+		client := emissary.EmissaryClient{
+			ID: idString,
+		}
+		clientRes, event, err := f.DB.UnRevokeEmissaryClient(client.ID)
 		if err != nil {
-			slog.Error("Could not get all services: %s", err)
+			slog.Error("error revoking emissary client: %w", err)
 		}
-		templates.GetServices(services).Render(r.Context(), w)
 
-		// Set up tcp reverse proxy that actually carries the client data to the target service.
-		go f.DrawbridgeAPI.AddNewProtectedService(*newServiceWithId)
-
+		templates.GetEmissaryClient(clientRes, event).Render(r.Context(), w)
 	})
 
 	// FOr testing, so we can access the html files we create

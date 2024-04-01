@@ -2,11 +2,11 @@ package utils
 
 import (
 	"archive/zip"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net"
 	"os"
 	"path"
@@ -346,4 +346,8 @@ func NewUUID() (string, error) {
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 
 	return uuid, nil
+}
+
+func RandInt(min, max int) int {
+	return min + rand.Intn(max-min)
 }

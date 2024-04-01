@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"dhens/drawbridge/cmd/drawbridge/emissary"
 	"dhens/drawbridge/cmd/drawbridge/emissary/authorization"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/drawbridge/services"
@@ -516,7 +517,10 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 		return nil, err
 	}
 	// Generate and save the mTLS key(s) and cert
-	clientId := "1337"
+	clientId, err := utils.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("error generating uuid: %w", err)
+	}
 	certsAndKeysFolderPath := "./bundle_tmp/put_certificates_and_key_from_drawbridge_here"
 	d.CreateEmissaryClientTCPMutualTLSKey(clientId, certsAndKeysFolderPath)
 	// Copy ca.crt next to keys
@@ -556,5 +560,27 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 		Contents: bundledEmissaryZipFile,
 		Name:     bundledFilename,
 	}
+
+	err = d.createEmissaryDevice(clientId)
+	if err != nil {
+		return nil, err
+	}
 	return &bundleFile, nil
+}
+
+func (d *Drawbridge) createEmissaryDevice(id string) error {
+	intOne := utils.RandInt(0, len(Adjectives))
+	intTwo := utils.RandInt(0, len(Animals))
+	deviceName := fmt.Sprintf("%s %s", Adjectives[intOne], Animals[intTwo])
+
+	client := emissary.EmissaryClient{
+		ID:      id,
+		Name:    deviceName,
+		Revoked: 0,
+	}
+	_, err := d.DB.CreateNewEmissaryClient(client)
+	if err != nil {
+		return fmt.Errorf("error creating emissary client: %w", err)
+	}
+	return nil
 }
