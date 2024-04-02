@@ -41,8 +41,8 @@ func (r *SQLiteRepository) GetAllEmissaryClients() ([]*emissary.EmissaryClient, 
 	defer rows.Close()
 
 	var clients []*emissary.EmissaryClient
-	var client emissary.EmissaryClient
 	for rows.Next() {
+		var client emissary.EmissaryClient
 		if err := rows.Scan(
 			&client.ID,
 			&client.Name,
