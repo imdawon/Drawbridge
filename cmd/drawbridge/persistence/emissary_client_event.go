@@ -16,6 +16,7 @@ func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {
 		timestamp TEXT NOT NULL,
 		FOREIGN KEY(device_id) REFERENCES emissary_client(id)
 	);
+	CREATE INDEX IF NOT EXISTS idx_emissary_client_event_device_id ON emissary_client_event (device_id);
 	`
 
 	_, err := r.db.Exec(query)
