@@ -10,3 +10,4 @@ release/
 __debug_*
 Drawbridge_*
 TODO.md
+bundle_tmp/
