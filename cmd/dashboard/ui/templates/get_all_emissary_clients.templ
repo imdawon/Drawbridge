@@ -7,6 +7,7 @@ templ GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEven
     if len(clients) == 0 {
         <p>No Fleet Devices created yet. Create an Emissary Bundle to start!</p>
     } else {
+        <ul id="device-fleet-list" hx-get="/emissary/get/clients" hx-trigger="every 10s" hx-target="this" hx-swap="outerHTML">
         for _, client := range clients {
             <li id={ fmt.Sprintf("fleet-device-%s",client.ID) }>
                 if client.Revoked == 1 {
@@ -24,5 +25,6 @@ templ GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEven
                 }
             </li>
         }     
+        </ul>
     }
 }
