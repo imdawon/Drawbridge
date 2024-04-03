@@ -122,7 +122,7 @@ func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []services.Pr
 // An Emissary TCP Mutual TLS Key is used to allow the Emissary Client to connect to Drawbridge directly.
 // The user will connect to the local proxy server the Emissary Client creates and all traffic will then flow
 // through Drawbridge.
-func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overrideDirectory ...string) error {
+func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overrideDirectory ...string) (*string, error) {
 	var directoryToSave string
 	if len(overrideDirectory) == 0 {
 		directoryToSave = "./emissary_certs_and_key_here"
@@ -160,7 +160,7 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 
 	clientCertPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Create the client certificate and sign it with our CA private key.
@@ -183,12 +183,12 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 	// Save the file to disk for use by an Emissary client. This should be later used and saved in the db for downloading later.
 	err = utils.SaveFile("emissary-mtls-tcp.crt", certPEM.String(), directoryToSave)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	certPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(clientCertPrivKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	certPrivKeyPEM := new(bytes.Buffer)
@@ -204,15 +204,16 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 
 	emissaryCert, err := tls.X509KeyPair(certPEM.Bytes(), certPrivKeyPEM.Bytes())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	certpool := x509.NewCertPool()
 	certpool.AppendCertsFromPEM(certPEM.Bytes())
 	//  Add Emissary mTLS certificate to list of acceptable client certificates.
 	d.CA.ClientTLSConfig.Certificates = append(d.CA.ClientTLSConfig.Certificates, emissaryCert)
+	certificateString := certPEM.String()
 
-	return nil
+	return &certificateString, nil
 }
 
 func (d *Drawbridge) AddNewProtectedService(protectedService services.ProtectedService) error {
@@ -224,6 +225,56 @@ func (d *Drawbridge) AddNewProtectedService(protectedService services.ProtectedS
 
 func (d *Drawbridge) StopRunningProtectedService(id int64) {
 	delete(d.ProtectedServices, id)
+}
+
+// var revokedCertsMutex sync.RWMutex
+
+// AddRevokedCert adds a certificate to the revoked certificates list
+// func AddRevokedCert(cert *x509.Certificate) {
+// 	revokedCertsMutex.Lock()
+// 	defer revokedCertsMutex.Unlock()
+// 	revokedCerts[cert.SerialNumber.String()] = true
+// }
+
+// VerifyPeerCertificateWithRevocationCheck is a custom VerifyPeerCertificate callback
+// that checks if the peer's certificate is in the revoked certificates list
+func VerifyPeerCertificateWithRevocationCheck(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	// Perform the standard certificate verification first
+	err := verify(rawCerts, verifiedChains)
+	if err != nil {
+		return err
+	}
+
+	// Check if any certificate in the chain is revoked
+	// for _, chain := range verifiedChains {
+	// 	for _, cert := range chain {
+	// 		revokedCertsMutex.RLock()
+	// 		if revokedCerts[cert.SerialNumber.String()] {
+	// 			revokedCertsMutex.RUnlock()
+	// 			return errors.New("certificate is revoked")
+	// 		}
+	// 		revokedCertsMutex.RUnlock()
+	// 	}
+	// }
+
+	// If we reach here, no certificate in the chain is revoked
+	return nil
+}
+
+// verify is a helper function that performs the standard certificate verification
+func verify(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	// Implement the standard certificate verification logic here
+	// or use the default Go implementation
+
+	// For example:
+	for _, cert := range rawCerts {
+		_, err := x509.ParseCertificate(cert)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // This is the service the Emissary client connects to when it wants to access a Protected Service.
@@ -238,7 +289,6 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 	addressAndPort := fmt.Sprintf("%s:3100", *listeningAddress)
 	slog.Info(fmt.Sprintf("Starting Drawbridge reverse proxy tunnel. Emissary clients can reach Drawbridge at %s", addressAndPort))
 	l, err := tls.Listen("tcp", "0.0.0.0:3100", d.CA.ServerTLSConfig)
-
 	if err != nil {
 		slog.Error(fmt.Sprintf("Reverse proxy TCP Listen failed: %s", err))
 	}
@@ -445,6 +495,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	if err != nil {
 		return nil, err
 	}
+	// We don't expect the zipped Emissary Bundle to get larger than 10MB
 	emissaryReleaseBody, err := io.ReadAll(io.LimitReader(emissaryResp.Body, 10000000))
 	if err != nil {
 		return nil, err
@@ -522,7 +573,10 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 		return nil, fmt.Errorf("error generating uuid: %w", err)
 	}
 	certsAndKeysFolderPath := "./bundle_tmp/put_certificates_and_key_from_drawbridge_here"
-	d.CreateEmissaryClientTCPMutualTLSKey(clientId, certsAndKeysFolderPath)
+	emissaryCert, err := d.CreateEmissaryClientTCPMutualTLSKey(clientId, certsAndKeysFolderPath)
+	if err != nil {
+		return nil, err
+	}
 	// Copy ca.crt next to keys
 	err = utils.CopyFile("./ca/ca.crt", certsAndKeysFolderPath)
 	if err != nil {
@@ -561,22 +615,23 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 		Name:     bundledFilename,
 	}
 
-	err = d.createEmissaryDevice(clientId)
+	err = d.createEmissaryDevice(clientId, *emissaryCert)
 	if err != nil {
 		return nil, err
 	}
 	return &bundleFile, nil
 }
 
-func (d *Drawbridge) createEmissaryDevice(id string) error {
+func (d *Drawbridge) createEmissaryDevice(id, certificate string) error {
 	intOne := utils.RandInt(0, len(Adjectives))
 	intTwo := utils.RandInt(0, len(Animals))
 	deviceName := fmt.Sprintf("%s %s", Adjectives[intOne], Animals[intTwo])
 
 	client := emissary.EmissaryClient{
-		ID:      id,
-		Name:    deviceName,
-		Revoked: 0,
+		ID:                    id,
+		Name:                  deviceName,
+		DrawbridgeCertificate: certificate,
+		Revoked:               0,
 	}
 	_, err := d.DB.CreateNewEmissaryClient(client)
 	if err != nil {
