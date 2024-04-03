@@ -32,6 +32,10 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 				return templ_7745c5c3_Err
 			}
 		} else {
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<ul id=\"device-fleet-list\" hx-get=\"/emissary/get/clients\" hx-trigger=\"every 10s\" hx-target=\"this\" hx-swap=\"outerHTML\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			for _, client := range clients {
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<li id=\"")
 				if templ_7745c5c3_Err != nil {
@@ -40,7 +44,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 				var templ_7745c5c3_Var2 string
 				templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("fleet-device-%s", client.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 11, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 12, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 				if templ_7745c5c3_Err != nil {
@@ -58,7 +62,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var3 string
 					templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(client.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 13, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 14, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 					if templ_7745c5c3_Err != nil {
@@ -71,7 +75,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var4 string
 					templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvents[client.ID].Timestamp.String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 15, Col: 87}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 16, Col: 87}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 					if templ_7745c5c3_Err != nil {
@@ -84,7 +88,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvents[client.ID].DeviceIP)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 16, Col: 78}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 17, Col: 78}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -97,7 +101,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("emissary/post/client/%s/unrevoke_certificate", client.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 17, Col: 131}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 18, Col: 131}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {
@@ -110,7 +114,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#fleet-device-%s", client.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 17, Col: 187}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 18, Col: 187}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -128,7 +132,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(client.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 19, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 20, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
@@ -141,7 +145,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvents[client.ID].Timestamp.String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 21, Col: 87}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 22, Col: 87}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -154,7 +158,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvents[client.ID].DeviceIP)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 22, Col: 78}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 23, Col: 78}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -167,7 +171,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("emissary/post/client/%s/revoke_certificate", client.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 23, Col: 128}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 24, Col: 128}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -180,7 +184,7 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 					var templ_7745c5c3_Var12 string
 					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#fleet-device-%s", client.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 23, Col: 184}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_all_emissary_clients.templ`, Line: 24, Col: 184}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 					if templ_7745c5c3_Err != nil {
@@ -195,6 +199,10 @@ func GetAllEmissaryClients(clients []*emissary.EmissaryClient, latestClientEvent
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</ul>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
 		}
 		if !templ_7745c5c3_IsBuffer {

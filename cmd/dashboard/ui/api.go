@@ -283,16 +283,14 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "Unable to revoke device with a blank id")
 		}
-		client := emissary.EmissaryClient{
-			ID: idString,
-		}
-		clientRes, event, err := f.DB.RevokeEmissaryClient(client.ID)
+		client, event, err := f.DB.RevokeEmissaryClient(idString)
 		if err != nil {
 			slog.Error("error revoking emissary client: %w", err)
 			fmt.Fprintf(w, "error revoking device")
 		}
+		// Add cert to CRL
 
-		templates.GetEmissaryClient(clientRes, event).Render(r.Context(), w)
+		templates.GetEmissaryClient(client, event).Render(r.Context(), w)
 	})
 
 	r.Post("/emissary/post/client/{id}/unrevoke_certificate", func(w http.ResponseWriter, r *http.Request) {
@@ -306,8 +304,9 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		}
 		clientRes, event, err := f.DB.UnRevokeEmissaryClient(client.ID)
 		if err != nil {
-			slog.Error("error revoking emissary client: %w", err)
+			slog.Error("error unrevoking emissary client: %w", err)
 		}
+		// Remove cert from CRL
 
 		templates.GetEmissaryClient(clientRes, event).Render(r.Context(), w)
 	})
