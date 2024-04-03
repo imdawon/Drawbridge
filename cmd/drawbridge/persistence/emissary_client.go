@@ -1,6 +1,8 @@
 package persistence
 
 import (
+	"context"
+	"database/sql"
 	"dhens/drawbridge/cmd/drawbridge/emissary"
 	"fmt"
 )
@@ -8,9 +10,10 @@ import (
 func (r *SQLiteRepository) MigrateEmissaryClient() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS emissary_client(
-		id TEXT PRIMARY KEY,
-		name TEXT UNIQUE,
-		revoked INTEGER
+		id TEXT PRIMARY KEY NOT NULL,
+		name TEXT UNIQUE NOT NULL,
+		drawbridge_certificate TEXT UNIQUE NOT NULL,
+		revoked INTEGER NOT NULL
 	);
 	`
 
@@ -20,9 +23,10 @@ func (r *SQLiteRepository) MigrateEmissaryClient() error {
 
 func (r *SQLiteRepository) CreateNewEmissaryClient(client emissary.EmissaryClient) (*emissary.EmissaryClient, error) {
 	_, err := r.db.Exec(
-		"INSERT INTO emissary_client(id, name, revoked) values(?, ?, ?)",
+		"INSERT INTO emissary_client(id, name, drawbridge_certificate, revoked) values(?, ?, ?, ?)",
 		client.ID,
 		client.Name,
+		client.DrawbridgeCertificate,
 		client.Revoked,
 	)
 	if err != nil {
@@ -46,6 +50,7 @@ func (r *SQLiteRepository) GetAllEmissaryClients() ([]*emissary.EmissaryClient, 
 		if err := rows.Scan(
 			&client.ID,
 			&client.Name,
+			&client.DrawbridgeCertificate,
 			&client.Revoked,
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
@@ -67,6 +72,7 @@ func (r *SQLiteRepository) GetEmissaryClientById(id string) (*emissary.EmissaryC
 		if err := rows.Scan(
 			&client.ID,
 			&client.Name,
+			&client.DrawbridgeCertificate,
 			&client.Revoked,
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
@@ -75,12 +81,13 @@ func (r *SQLiteRepository) GetEmissaryClientById(id string) (*emissary.EmissaryC
 	return &client, nil
 }
 
-func (r *SQLiteRepository) UpdateEmissaryClient(updated *emissary.EmissaryClient, id int64) error {
+func (r *SQLiteRepository) UpdateEmissaryClient(updated *emissary.EmissaryClient, id int64, column string) error {
 	if id == 0 {
 		return fmt.Errorf("the emissary client id supplied is invalid. unable to update emissary client row")
 	}
 	res, err := r.db.Exec(
-		"UPDATE emissary_client SET name = ? WHERE id = ?",
+		"UPDATE emissary_client SET ? = ? WHERE id = ?",
+		column,
 		updated.Name,
 		id,
 	)
@@ -100,37 +107,57 @@ func (r *SQLiteRepository) UpdateEmissaryClient(updated *emissary.EmissaryClient
 // Marks a device as revoked, which keeps it from being able to connect to Drawbridge at all.
 // We do this by adding the Emissary client certificate to Drawbridge's Certificate Revocation List.
 func (r *SQLiteRepository) RevokeEmissaryClient(id string) (*emissary.EmissaryClient, *emissary.Event, error) {
-	_, err := r.db.Exec("UPDATE emissary_client SET revoked = 1 WHERE id = ?", id)
+	ctx := context.Background()
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
+		_ = tx.Rollback()
+		return nil, nil, err
+	}
+	_, err = tx.Exec("UPDATE emissary_client SET revoked = 1 WHERE id = ?", id)
+	if err != nil {
+		_ = tx.Rollback()
 		return nil, nil, fmt.Errorf("error unrevoking emissary client with id of %s: %s", id, err)
-
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, nil, err
 	}
 	client, err := r.GetEmissaryClientById(id)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error getting emissary client after unrevoking it: %w", err)
+		return nil, nil, fmt.Errorf("error getting emissary client after revoking it: %w", err)
 	}
 
-	event, err := r.GetLatestEventForDeviceId(client.ID)
+	event, err := r.GetLatestEventForDeviceId(id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting latest event for revoked client: %w", err)
 	}
 	return client, event, nil
-
 }
 
 // Marks a device as unrevoked, which allows it to connect to Drawbridge after not be allowed to.
 // We do this by removing the Emissary client certificate from the Drawbridge's Certificate Revocation List.
 func (r *SQLiteRepository) UnRevokeEmissaryClient(id string) (*emissary.EmissaryClient, *emissary.Event, error) {
-	_, err := r.db.Exec("UPDATE emissary_client SET revoked = 0 WHERE id = ?", id)
+	ctx := context.Background()
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
+		_ = tx.Rollback()
+		return nil, nil, err
+	}
+
+	_, err = tx.Exec("UPDATE emissary_client SET revoked = 0 WHERE id = ?", id)
+	if err != nil {
+		_ = tx.Rollback()
 		return nil, nil, fmt.Errorf("error unrevoking emissary client with id of %s: %s", id, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, nil, err
 	}
 
 	client, err := r.GetEmissaryClientById(id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting emissary client after unrevoking it: %w", err)
 	}
-	event, err := r.GetLatestEventForDeviceId(client.ID)
+
+	event, err := r.GetLatestEventForDeviceId(id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting latest event for revoked client: %w", err)
 	}
