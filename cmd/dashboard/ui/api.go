@@ -5,7 +5,6 @@ import (
 	"dhens/drawbridge/cmd/analytics"
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
-	"dhens/drawbridge/cmd/drawbridge/emissary"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/drawbridge/services"
 	flagger "dhens/drawbridge/cmd/flags"
@@ -304,10 +303,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "Unable to revoke device with a blank id")
 		}
-		client := emissary.EmissaryClient{
-			ID: idString,
-		}
-		clientRes, event, err := f.DB.UnRevokeEmissaryClient(client.ID)
+
+		client, event, err := f.DB.UnRevokeEmissaryClient(idString)
 		if err != nil {
 			slog.Error("error unrevoking emissary client: %w", err)
 		}
@@ -316,7 +313,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		hexHash := hex.EncodeToString(hash[:])
 		f.DrawbridgeAPI.CA.UnRevokeCertInCertificateRevocationList(hexHash)
 
-		templates.GetEmissaryClient(clientRes, event).Render(r.Context(), w)
+		templates.GetEmissaryClient(client, event).Render(r.Context(), w)
 	})
 
 	// FOr testing, so we can access the html files we create
