@@ -147,24 +147,25 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		newSettings := drawbridge.Settings{}
 		decoder.Decode(&newSettings, r.Form)
 
-		if newSettings.ListenerAddress == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "<span class=\"error-response\">Listening address is blank! Please try again.<span>")
-		} else if newSettings.ListenerAddress == "localhost" {
+		if newSettings.ListenerAddress == "localhost" {
 			newSettings.ListenerAddress = "127.0.0.1"
 		}
+		if newSettings.ListenerAddress != "" {
+			err := f.DB.CreateNewDrawbridgeConfigSettings("listening_address", strings.TrimSpace(newSettings.ListenerAddress))
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
+				return
+			}
+		}
 
-		err := f.DB.CreateNewDrawbridgeConfigSettings("listening_address", strings.TrimSpace(newSettings.ListenerAddress))
+		err := f.DB.CreateNewDrawbridgeConfigSettings("dau_ping_enabled", strconv.FormatBool(newSettings.EnableDAUPing))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
+			return
 		}
 
-		err = f.DB.CreateNewDrawbridgeConfigSettings("dau_ping_enabled", strconv.FormatBool(newSettings.EnableDAUPing))
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
-		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "%s:%d", newSettings.ListenerAddress, 3100)
 	})

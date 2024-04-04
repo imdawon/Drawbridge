@@ -13,7 +13,7 @@ templ GetOnboardingModalConfigure(listeningAddress string, dauPingEnabled bool) 
                 <label for="listener-address">What IP should Drawbridge be accessible from?</label>
                 <p class="note-text">Note: this is the address your Emissary clients will use to connect to Drawbridge. It can be your LAN (local) or WAN (accessible outside your network) address.</p>
                 <p style="color:orange">IP not yet available to edit - will break Drawbridge certificates. Coming soon.</p>
-                <input name="listener-address" type="text" id="listener-address" placeholder="50.42.165.84" value={ listeningAddress } disabled/>
+                <input name="listener-address" type="text" id="listener-address" placeholder="50.42.165.84" value={ listeningAddress } readonly/>
                 <label for="enable-ping">
                     if dauPingEnabled {
                         <input type="checkbox" id="enable-ping" name="enable-ping" checked/>
