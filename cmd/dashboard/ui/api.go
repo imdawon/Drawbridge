@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"crypto/sha256"
 	"dhens/drawbridge/cmd/analytics"
 	"dhens/drawbridge/cmd/dashboard/ui/templates"
 	"dhens/drawbridge/cmd/drawbridge"
@@ -8,6 +9,7 @@ import (
 	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/drawbridge/services"
 	flagger "dhens/drawbridge/cmd/flags"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"log/slog"
@@ -289,6 +291,9 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			fmt.Fprintf(w, "error revoking device")
 		}
 		// Add cert to CRL
+		hash := sha256.Sum256([]byte(client.DrawbridgeCertificate))
+		hexHash := hex.EncodeToString(hash[:])
+		f.DrawbridgeAPI.CA.RevokeCertInCertificateRevocationList(hexHash)
 
 		templates.GetEmissaryClient(client, event).Render(r.Context(), w)
 	})
@@ -307,6 +312,9 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			slog.Error("error unrevoking emissary client: %w", err)
 		}
 		// Remove cert from CRL
+		hash := sha256.Sum256([]byte(client.DrawbridgeCertificate))
+		hexHash := hex.EncodeToString(hash[:])
+		f.DrawbridgeAPI.CA.UnRevokeCertInCertificateRevocationList(hexHash)
 
 		templates.GetEmissaryClient(clientRes, event).Render(r.Context(), w)
 	})
