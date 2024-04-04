@@ -14,6 +14,7 @@ import (
 	"dhens/drawbridge/cmd/utils"
 	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -83,10 +84,11 @@ func (c *CA) SetupCertificates() error {
 		}
 
 		c.ServerTLSConfig = &tls.Config{
-			Certificates:          []tls.Certificate{serverCert},
-			ClientCAs:             certpool,
-			ClientAuth:            tls.RequireAndVerifyClientCert,
-			MinVersion:            tls.VersionTLS13,
+			Certificates: []tls.Certificate{serverCert},
+			ClientCAs:    certpool,
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			MinVersion:   tls.VersionTLS13,
+			// Ensure device cert is valid during handshake
 			VerifyPeerCertificate: c.verifyEmissaryCertificate,
 		}
 		c.ClientTLSConfig = &tls.Config{
@@ -272,9 +274,10 @@ func (c *CA) SetupCertificates() error {
 	certpool.AppendCertsFromPEM(caPEM.Bytes())
 
 	c.ServerTLSConfig = &tls.Config{
-		Certificates:          []tls.Certificate{serverCert},
-		ClientCAs:             certpool,
-		ClientAuth:            tls.RequireAndVerifyClientCert,
+		Certificates: []tls.Certificate{serverCert},
+		ClientCAs:    certpool,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		// Ensure device cert is valid during handshake
 		VerifyPeerCertificate: c.verifyEmissaryCertificate,
 	}
 
@@ -288,6 +291,8 @@ func (c *CA) SetupCertificates() error {
 	return nil
 }
 
+// THIS FUNCTION NEEDS TO BE FAST TO NOT DELAY HANDSHAKE
+// Run for every Drawbridge + Emissary handshake to verify the presented cert is not revoked.
 func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	// Parse the peer certificate
 	// PEM encode
@@ -304,10 +309,8 @@ func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x5
 	// Check if the certificate hash is in the revocation list
 	if c.CertificateRevocationList[hexHash] == 1 {
 		slog.Debug("peer cert is REVOKED")
-		return fmt.Errorf("peer certificate is revoked")
+		return errors.New("peer certificate is revoked")
 	}
-
-	fmt.Printf("rawcert %+v CRL: %+v", rawCerts[0], c.CertificateRevocationList)
 
 	// Additional certificate verification checks can be added here
 	slog.Debug("peer cert is VALID")
