@@ -6,32 +6,36 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/utils"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"log"
 	"log/slog"
 	"math/big"
 	"net"
+	"sync"
 	"time"
 )
 
 type CA struct {
-	CertPool             *x509.CertPool
-	ClientTLSConfig      *tls.Config
-	ServerTLSConfig      *tls.Config
-	CertificateAuthority *x509.Certificate
-	PrivateKey           crypto.PrivateKey
-	DB                   *persistence.SQLiteRepository
+	CertPool                  *x509.CertPool
+	ClientTLSConfig           *tls.Config
+	ServerTLSConfig           *tls.Config
+	CertificateAuthority      *x509.Certificate
+	PrivateKey                crypto.PrivateKey
+	DB                        *persistence.SQLiteRepository
+	CertificateRevocationList map[string]uint8
 }
 
 var CertificateAuthority *CA
 
-func (c *CA) SetupCertificates() (err error) {
+func (c *CA) SetupCertificates() error {
 	caCertContents := utils.ReadFile("ca/ca.crt")
 	caPrivKeyContents := utils.ReadFile("ca/ca.key")
 	serverCertExists := utils.FileExists("ca/server-cert.crt")
@@ -65,6 +69,13 @@ func (c *CA) SetupCertificates() (err error) {
 		if err != nil {
 			log.Fatal("Error parsing CA cert: ", err)
 		}
+
+		// Load revoked certs into CRL from db.
+		revokedCerts, err := c.DB.GetAllEmissaryClientCertificates()
+		if err != nil {
+			return fmt.Errorf("errpr getting all emissary client certs: %w", err)
+		}
+		c.CertificateRevocationList = revokedCerts
 		// Read the key pair to create certificate
 		serverCert, err := tls.LoadX509KeyPair(serverCertPath, serverKeyPath)
 		if err != nil {
@@ -72,10 +83,11 @@ func (c *CA) SetupCertificates() (err error) {
 		}
 
 		c.ServerTLSConfig = &tls.Config{
-			Certificates: []tls.Certificate{serverCert},
-			ClientCAs:    certpool,
-			ClientAuth:   tls.RequireAndVerifyClientCert,
-			MinVersion:   tls.VersionTLS13,
+			Certificates:          []tls.Certificate{serverCert},
+			ClientCAs:             certpool,
+			ClientAuth:            tls.RequireAndVerifyClientCert,
+			MinVersion:            tls.VersionTLS13,
+			VerifyPeerCertificate: c.verifyEmissaryCertificate,
 		}
 		c.ClientTLSConfig = &tls.Config{
 			RootCAs:      certpool,
@@ -260,9 +272,10 @@ func (c *CA) SetupCertificates() (err error) {
 	certpool.AppendCertsFromPEM(caPEM.Bytes())
 
 	c.ServerTLSConfig = &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientCAs:    certpool,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
+		Certificates:          []tls.Certificate{serverCert},
+		ClientCAs:             certpool,
+		ClientAuth:            tls.RequireAndVerifyClientCert,
+		VerifyPeerCertificate: c.verifyEmissaryCertificate,
 	}
 
 	c.ClientTLSConfig = &tls.Config{
@@ -270,7 +283,52 @@ func (c *CA) SetupCertificates() (err error) {
 		Certificates: []tls.Certificate{serverCert},
 	}
 
+	c.CertificateRevocationList = make(map[string]uint8)
+
 	return nil
+}
+
+func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	// Parse the peer certificate
+	// PEM encode
+	caPEM := new(bytes.Buffer)
+	pem.Encode(caPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: rawCerts[0],
+	})
+
+	// Calculate the SHA-256 hash of the peer certificate
+	hash := sha256.Sum256(caPEM.Bytes())
+	hexHash := hex.EncodeToString(hash[:])
+
+	// Check if the certificate hash is in the revocation list
+	if c.CertificateRevocationList[hexHash] == 1 {
+		slog.Debug("peer cert is REVOKED")
+		return fmt.Errorf("peer certificate is revoked")
+	}
+
+	fmt.Printf("rawcert %+v CRL: %+v", rawCerts[0], c.CertificateRevocationList)
+
+	// Additional certificate verification checks can be added here
+	slog.Debug("peer cert is VALID")
+
+	return nil
+}
+
+var revokedCertsMutex sync.RWMutex
+
+// RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
+func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
+	revokedCertsMutex.Lock()
+	defer revokedCertsMutex.Unlock()
+	c.CertificateRevocationList[shaCert] = 1
+}
+
+// RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
+func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
+	revokedCertsMutex.Lock()
+	defer revokedCertsMutex.Unlock()
+	delete(c.CertificateRevocationList, shaCert)
 }
 
 // If someone is listening on a LAN address, we don't want to listen on all interfaces like we do if someone uses their

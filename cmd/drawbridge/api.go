@@ -17,6 +17,7 @@ import (
 	"dhens/drawbridge/cmd/utils"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -27,6 +28,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ProtonMail/gopenpgp/v3/crypto"
@@ -150,6 +152,7 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 			StreetAddress: []string{""},
 			PostalCode:    []string{""},
 			CommonName:    *listeningAddress,
+			SerialNumber:  clientId,
 		},
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(10, 0, 0),
@@ -216,7 +219,11 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 	return &certificateString, nil
 }
 
+var runningProtectedServicesMutex sync.RWMutex
+
 func (d *Drawbridge) AddNewProtectedService(protectedService services.ProtectedService) error {
+	runningProtectedServicesMutex.Lock()
+	defer runningProtectedServicesMutex.Unlock()
 	d.ProtectedServices[protectedService.ID] = services.RunningProtectedService{
 		Service: protectedService,
 	}
@@ -224,56 +231,18 @@ func (d *Drawbridge) AddNewProtectedService(protectedService services.ProtectedS
 }
 
 func (d *Drawbridge) StopRunningProtectedService(id int64) {
+	runningProtectedServicesMutex.Lock()
+	defer runningProtectedServicesMutex.Unlock()
 	delete(d.ProtectedServices, id)
 }
 
-// var revokedCertsMutex sync.RWMutex
-
-// AddRevokedCert adds a certificate to the revoked certificates list
-// func AddRevokedCert(cert *x509.Certificate) {
-// 	revokedCertsMutex.Lock()
-// 	defer revokedCertsMutex.Unlock()
-// 	revokedCerts[cert.SerialNumber.String()] = true
-// }
-
 // VerifyPeerCertificateWithRevocationCheck is a custom VerifyPeerCertificate callback
 // that checks if the peer's certificate is in the revoked certificates list
-func VerifyPeerCertificateWithRevocationCheck(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-	// Perform the standard certificate verification first
-	err := verify(rawCerts, verifiedChains)
-	if err != nil {
-		return err
+func (d *Drawbridge) VerifyPeerCertificateWithRevocationCheck(cert string) error {
+	if d.CA.CertificateRevocationList[cert] == 1 {
+		return errors.New("certificate is revoked")
 	}
-
-	// Check if any certificate in the chain is revoked
-	// for _, chain := range verifiedChains {
-	// 	for _, cert := range chain {
-	// 		revokedCertsMutex.RLock()
-	// 		if revokedCerts[cert.SerialNumber.String()] {
-	// 			revokedCertsMutex.RUnlock()
-	// 			return errors.New("certificate is revoked")
-	// 		}
-	// 		revokedCertsMutex.RUnlock()
-	// 	}
-	// }
-
 	// If we reach here, no certificate in the chain is revoked
-	return nil
-}
-
-// verify is a helper function that performs the standard certificate verification
-func verify(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-	// Implement the standard certificate verification logic here
-	// or use the default Go implementation
-
-	// For example:
-	for _, cert := range rawCerts {
-		_, err := x509.ParseCertificate(cert)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
