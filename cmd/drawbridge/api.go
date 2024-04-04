@@ -43,11 +43,14 @@ type Settings struct {
 // ProtectedServices contains a map of listeners running for each Protected Service.
 // The int key is the ID of the service as stored in the database.
 type Drawbridge struct {
-	CA                *certificates.CA
-	ProtectedServices map[int64]services.RunningProtectedService
-	Settings          *Settings
-	DB                *persistence.SQLiteRepository
+	CA                    *certificates.CA
+	ProtectedServices     map[int64]services.RunningProtectedService
+	Settings              *Settings
+	DB                    *persistence.SQLiteRepository
+	ActiveEmissaryTunnels EmissaryTunnels
 }
+
+type EmissaryTunnels map[string]net.Conn
 
 type EmissaryConfig struct {
 	Platform string `schema:"emissary-platform"`
