@@ -41,11 +41,11 @@ To accomplish this, the following needs to be true:
 
 ## Authentication Process 
 - A Drawbridge server is set up and configured to be accessible from port 3100 on an internet-facing IP address.
-- For easiest deployment of Emissary clients, an Emissary 
-- An Emissary user enters the IP or the URI (https://drawbridge.myserver.com) into their client.
-  - Emissary will make an http request to fetch the Drawbridge policy
-  - Emissary will gather the information required by the policy and send it back via an http request
-  - Drawbridge will either authorize the device and return with an mTLS certificate, or an error, saying Emissary, in it's current confguration, is not authorized to access the Drawbridge resources.
+- An Emissary user runs the Emissary Bundle created by the Drawbridge admin to connect to Drawbridge.
+- Emissary will then:
+  - Create a TCP connection to Drawbridge.
+  - Present its mTLS certificate to Drawbridge for the handshake process.
+  - If successful, Emissary will send a message over the TCP connection to get all Protected Services available from Drawbridge.
 
   ### mTLS
   The Drawbridge server will create a Root CA and sign all client mTLS keys.
