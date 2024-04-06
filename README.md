@@ -50,5 +50,4 @@ To accomplish this, the following needs to be true:
   ### mTLS
   The Drawbridge server will create a Root CA and sign all client mTLS keys.
   
-  By default, one mTLS key is shipped in the `certs` folder alongside the Emissary client "Download Bundled Emissary client" (talk_to_drawbridge.key) from the main page in the Drawbridge Dash.
-  talk_to_drawbridge.key allows an Emissary client to communicate with the Drawbridge server, but they _still_ have to pass the configured Drawbridge policy to access resources protected by Drawbridge.
+  When using the Emissary Bundle feature in the Drawbridge Dashboard, the zipped Bundle will contain the mTLS keys and certificate needed to connect to Drawbridge. This Emissary certificate can be revoked and unrevoked in the Emissary Clients page in the Dashboard as needed.
