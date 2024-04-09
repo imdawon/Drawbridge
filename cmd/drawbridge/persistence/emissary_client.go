@@ -62,18 +62,20 @@ func (r *SQLiteRepository) GetAllEmissaryClients() ([]*emissary.EmissaryClient, 
 	return clients, nil
 }
 
-func (r *SQLiteRepository) GetAllEmissaryClientCertificates() (map[string]uint8, error) {
-	rows, err := r.db.Query("SELECT drawbridge_certificate FROM emissary_client WHERE revoked = 1")
+func (r *SQLiteRepository) GetAllEmissaryClientCertificates() (map[string]emissary.DeviceCertificate, error) {
+	rows, err := r.db.Query("SELECT drawbridge_certificate AND id AND revoked FROM emissary_client WHERE revoked = 1")
 	if err != nil {
 		return nil, fmt.Errorf("error getting all emissary clients: %s", err)
 	}
 	defer rows.Close()
 
-	revokedCerts := make(map[string]uint8, 0)
+	deviceCerts := make(map[string]emissary.DeviceCertificate, 0)
 	for rows.Next() {
 		var client emissary.EmissaryClient
 		if err := rows.Scan(
 			&client.DrawbridgeCertificate,
+			&client.ID,
+			&client.Revoked,
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
 		}
@@ -81,9 +83,12 @@ func (r *SQLiteRepository) GetAllEmissaryClientCertificates() (map[string]uint8,
 		// and to shorten the length of the cert as we store it in memory.
 		certificateBytes := sha256.Sum256([]byte(client.DrawbridgeCertificate))
 		shaCertificate := hex.EncodeToString(certificateBytes[:])
-		revokedCerts[shaCertificate] = 1
+		deviceCerts[shaCertificate] = emissary.DeviceCertificate{
+			DeviceID: client.ID,
+			Revoked:  client.Revoked,
+		}
 	}
-	return revokedCerts, nil
+	return deviceCerts, nil
 }
 
 func (r *SQLiteRepository) GetEmissaryClientById(id string) (*emissary.EmissaryClient, error) {

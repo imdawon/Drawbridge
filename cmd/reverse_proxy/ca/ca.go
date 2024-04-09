@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"dhens/drawbridge/cmd/drawbridge/emissary"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/utils"
 	"encoding/hex"
@@ -25,13 +26,14 @@ import (
 )
 
 type CA struct {
-	CertPool                  *x509.CertPool
-	ClientTLSConfig           *tls.Config
-	ServerTLSConfig           *tls.Config
-	CertificateAuthority      *x509.Certificate
-	PrivateKey                crypto.PrivateKey
-	DB                        *persistence.SQLiteRepository
-	CertificateRevocationList map[string]uint8
+	CertPool             *x509.CertPool
+	ClientTLSConfig      *tls.Config
+	ServerTLSConfig      *tls.Config
+	CertificateAuthority *x509.Certificate
+	PrivateKey           crypto.PrivateKey
+	DB                   *persistence.SQLiteRepository
+	// sha256 key of certificate -> device uuid and revoked
+	CertificateList map[string]emissary.DeviceCertificate
 }
 
 var CertificateAuthority *CA
@@ -71,12 +73,6 @@ func (c *CA) SetupCertificates() error {
 			log.Fatal("Error parsing CA cert: ", err)
 		}
 
-		// Load revoked certs into CRL from db.
-		revokedCerts, err := c.DB.GetAllEmissaryClientCertificates()
-		if err != nil {
-			return fmt.Errorf("errpr getting all emissary client certs: %w", err)
-		}
-		c.CertificateRevocationList = revokedCerts
 		// Read the key pair to create certificate
 		serverCert, err := tls.LoadX509KeyPair(serverCertPath, serverKeyPath)
 		if err != nil {
@@ -286,7 +282,7 @@ func (c *CA) SetupCertificates() error {
 		Certificates: []tls.Certificate{serverCert},
 	}
 
-	c.CertificateRevocationList = make(map[string]uint8)
+	c.CertificateList = make(map[string]emissary.DeviceCertificate, 0)
 
 	return nil
 }
@@ -307,7 +303,7 @@ func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x5
 	hexHash := hex.EncodeToString(hash[:])
 
 	// Check if the certificate hash is in the revocation list
-	if c.CertificateRevocationList[hexHash] == 1 {
+	if c.CertificateList[hexHash].Revoked == 1 {
 		slog.Debug("peer cert is REVOKED")
 		return errors.New("peer certificate is revoked")
 	}
@@ -324,14 +320,20 @@ var revokedCertsMutex sync.RWMutex
 func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
 	revokedCertsMutex.Lock()
 	defer revokedCertsMutex.Unlock()
-	c.CertificateRevocationList[shaCert] = 1
+	cert, ok := c.CertificateList[shaCert]
+	if !ok {
+		slog.Error("Unable to revoke certificate", shaCert)
+	}
+	certCopy := cert
+	certCopy.Revoked = 1
+	c.CertificateList[shaCert] = certCopy
 }
 
 // RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
 func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
 	revokedCertsMutex.Lock()
 	defer revokedCertsMutex.Unlock()
-	delete(c.CertificateRevocationList, shaCert)
+	delete(c.CertificateList, shaCert)
 }
 
 // If someone is listening on a LAN address, we don't want to listen on all interfaces like we do if someone uses their
