@@ -239,7 +239,8 @@ func (d *Drawbridge) StopRunningProtectedService(id int64) {
 // VerifyPeerCertificateWithRevocationCheck is a custom VerifyPeerCertificate callback
 // that checks if the peer's certificate is in the revoked certificates list
 func (d *Drawbridge) VerifyPeerCertificateWithRevocationCheck(cert string) error {
-	if d.CA.CertificateRevocationList[cert] == 1 {
+	deviceUUID := d.CA.CertificateList[cert]
+	if deviceUUID.Revoked == 1 {
 		return errors.New("certificate is revoked")
 	}
 	// If we reach here, no certificate in the chain is revoked

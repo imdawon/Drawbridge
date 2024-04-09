@@ -8,3 +8,8 @@ type EmissaryClient struct {
 	DrawbridgeCertificate string
 	Revoked               uint8
 }
+
+type DeviceCertificate struct {
+	Revoked  uint8
+	DeviceID string
+}

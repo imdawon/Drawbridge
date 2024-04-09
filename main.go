@@ -23,13 +23,13 @@ func main() {
 		&flagger.FLAGS.FrontendAPIHostAndPort,
 		"fapi",
 		"localhost:3000",
-		"listening host and port for frontend api e.g localhost:3000",
+		"listening host and port for the drawbridge dashboard page e.g localhost:3000",
 	)
 	flag.StringVar(
 		&flagger.FLAGS.BackendAPIHostAndPort,
 		"api",
 		"localhost:3001",
-		"listening host and port for backend api e.g localhost:3001",
+		"(currently unused) listening host and port for emissary api e.g localhost:3001",
 	)
 	flag.StringVar(
 		&flagger.FLAGS.SqliteFilename,
@@ -41,7 +41,7 @@ func main() {
 		&flagger.FLAGS.Env,
 		"env",
 		"production",
-		"the environment that Drawbridge is running in (production, development)",
+		"the environment that Drawbridge is running in (production, development). development mode increases logging verbosity.",
 	)
 	flag.Parse()
 
