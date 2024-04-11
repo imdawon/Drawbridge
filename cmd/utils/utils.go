@@ -191,128 +191,136 @@ func CopyFile(filePath string, destinationPath string) error {
 
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-func Unzip(source string, target string) ([]string, error) {
+func Unzip(srcZipFile, destDir string) error {
 	// Ensure we are only reading files from our executable and not where the terminal is executing from.
 	execPath, err := os.Executable()
 	if err != nil {
 		slog.Error(err.Error())
 	}
 	execDirPath := path.Dir(execPath)
-	source = filepath.Join(execDirPath, source)
-	target = filepath.Join(execDirPath, target)
+	srcZipFile = filepath.Join(execDirPath, srcZipFile)
+	destDir = filepath.Join(execDirPath, destDir)
 
-	var filenames []string
-
-	r, err := zip.OpenReader(source)
-	if err != nil {
-		slog.Error("Unzip File", slog.Any("Error", err))
-		return filenames, fmt.Errorf("opening zip file failed: %w", err)
-	}
-	defer r.Close()
-
-	slog.Debug("iterating over zip files to unzip...")
-	for _, f := range r.File {
-
-		// Store filename/path for returning and using later on
-		fpath := filepath.Join(target, f.Name)
-
-		filenames = append(filenames, fpath)
-
-		if f.FileInfo().IsDir() {
-			// Make Folder
-			os.MkdirAll(fpath, os.ModePerm)
-			continue
-		}
-
-		// Make File
-		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-			return filenames, fmt.Errorf("unzip mkdirall failed: %w", err)
-		}
-
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			return filenames, fmt.Errorf("unzip open destination filename failed: %w", err)
-		}
-
-		rc, err := f.Open()
-		if err != nil {
-			return filenames, fmt.Errorf("open zip file failed: %w", err)
-		}
-
-		_, err = io.Copy(outFile, rc)
-
-		// Close the file without defer to close before next iteration of loop
-		outFile.Close()
-		rc.Close()
-
-		if err != nil {
-			return filenames, fmt.Errorf("io copy failed: %w", err)
-		}
-	}
-	return filenames, nil
-}
-
-func ZipSource(source, target string) error {
-	// Ensure we are only reading files from our executable and not where the terminal is executing from.
-	execPath, err := os.Executable()
-	if err != nil {
-		slog.Error(err.Error())
-	}
-	execDirPath := path.Dir(execPath)
-	source = filepath.Join(execDirPath, source)
-	target = filepath.Join(execDirPath, target)
-
-	// 1. Create a ZIP file and zip.Writer
-	f, err := os.Create(target)
+	// Open the ZIP file
+	reader, err := zip.OpenReader(srcZipFile)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer reader.Close()
 
-	writer := zip.NewWriter(f)
-	defer writer.Close()
+	// Iterate through the files in the ZIP archive
+	slog.Debug("iterating over zip files to unzip...")
+	for _, file := range reader.File {
+		// Get the file path inside the ZIP archive
+		filePath := filepath.Join(destDir, file.Name)
 
-	// 2. Go through all the files of the source
-	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		// Create the parent directories if they don't exist
+		if file.FileInfo().IsDir() {
+			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Create the file on the filesystem
+		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+			return err
+		}
+
+		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 		if err != nil {
 			return err
 		}
 
-		// 3. Create a local file header
+		// Open a reader for the file inside the ZIP archive
+		rc, err := file.Open()
+		if err != nil {
+			outFile.Close()
+			return err
+		}
+		defer rc.Close()
+
+		// Copy the contents of the file from the ZIP archive to the filesystem
+		_, err = io.Copy(outFile, rc)
+		if err != nil {
+			outFile.Close()
+			return err
+		}
+
+		outFile.Close()
+	}
+
+	return nil
+}
+
+func ZipSource(srcDir, destZipFile string) error {
+	// Ensure we are only reading files from our executable and not where the terminal is executing from.
+	execPath, err := os.Executable()
+	if err != nil {
+		slog.Error(err.Error())
+	}
+	execDirPath := path.Dir(execPath)
+	srcDir = filepath.Join(execDirPath, srcDir)
+	destZipFile = filepath.Join(execDirPath, destZipFile)
+
+	// Create a new ZIP file
+	zipFile, err := os.Create(destZipFile)
+	if err != nil {
+		return err
+	}
+	defer zipFile.Close()
+
+	// Create a new ZIP writer
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	// Walk through the source directory and add files to the ZIP
+	return filepath.Walk(srcDir, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Get the relative path of the file from the source directory
+		relPath, err := filepath.Rel(srcDir, filePath)
+		if err != nil {
+			return err
+		}
+
+		// Skip the root directory itself
+		if relPath == "." {
+			return nil
+		}
+
+		// Create a new file header for the file
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
 		}
 
-		// set compression
+		// Update the file header with the relative path
+		// Use forward slashes and set the flags for better cross-platform compatibility
+		header.Name = filepath.ToSlash(relPath)
 		header.Method = zip.Deflate
 
-		// 4. Set relative path of a file as the header name
-		header.Name, err = filepath.Rel(filepath.Dir(source), path)
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			header.Name += "/"
-		}
-
-		// 5. Create writer for the file header and save content of the file
-		headerWriter, err := writer.CreateHeader(header)
+		// Create a new file writer inside the ZIP file
+		writer, err := zipWriter.CreateHeader(header)
 		if err != nil {
 			return err
 		}
 
+		// If it's a directory, skip writing any content
 		if info.IsDir() {
 			return nil
 		}
 
-		f, err := os.Open(path)
+		// Open the source file and copy its contents to the ZIP file
+		srcFile, err := os.Open(filePath)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer srcFile.Close()
 
-		_, err = io.Copy(headerWriter, f)
+		_, err = io.Copy(writer, srcFile)
 		return err
 	})
 }
