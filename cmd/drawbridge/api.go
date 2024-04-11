@@ -532,7 +532,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	// Unzip the zip file into the bundle_tmp directory.
 	// We will be zipping up the contents of the ./bundle_tmp directory later.
 	slog.Debug("unzipping emissary zip file from github...", slog.Any("Path", emissaryZipPath))
-	_, err = utils.Unzip(emissaryZipPath, bundleTmpFolderPath)
+	err = utils.Unzip(emissaryZipPath, bundleTmpFolderPath)
 	if err != nil {
 		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("unable to unzip Emissary client downloaded from GitHub: %w", err)))
 		return nil, err
