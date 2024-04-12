@@ -286,10 +286,33 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			slog.Info("Emissary Connection", slog.Any("Message Received", buf))
 
 			emissaryRequestPayload := string(buf[:])
-			if strings.Contains(emissaryRequestPayload, "PS_CONN") {
-				emissaryRequestedServiceSplit := strings.TrimPrefix(emissaryRequestPayload, "PS_CONN")
-				emissaryRequestedServiceSplit = strings.TrimSpace(emissaryRequestedServiceSplit)
-				emissaryRequestedServiceId := emissaryRequestedServiceSplit[:3]
+			emissaryRequestType := emissaryRequestPayload[:7]
+			emissaryRequestedServiceId := ""
+			if emissaryRequestType != "PS_LIST" {
+				emissaryRequestedServiceId = emissaryRequestPayload[8:11]
+			}
+			eventUUID, err := utils.NewUUID()
+			if err != nil {
+				slog.Error("Emissary Event", slog.Any("Error", err))
+			}
+			event := emissary.Event{
+				ID:             eventUUID,
+				DeviceID:       eventUUID,
+				ConnectionIP:   conn.RemoteAddr().String(),
+				Type:           emissaryRequestType,
+				TargetService:  emissaryRequestedServiceId,
+				ConnectionType: "",
+				Timestamp:      time.Now().Format(time.RFC3339),
+			}
+			go func() {
+				slog.Debug("Inserting Emissary Event...")
+				err = d.DB.InsertEmissaryClientEvent(event)
+			}()
+			if err != nil {
+				slog.Error("Emissary Event", slog.Any("DB Error", err))
+			}
+
+			if emissaryRequestType == "PS_CONN" {
 				// May be used later after we standardize how and when to read the tcp connection into the buf above.
 				// d.getRequestProtectedServiceName(clientConn)
 				emissaryRequestedServiceIdNum, err := strconv.Atoi(emissaryRequestedServiceId)

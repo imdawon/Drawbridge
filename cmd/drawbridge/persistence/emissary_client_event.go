@@ -10,6 +10,7 @@ func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {
 	CREATE TABLE IF NOT EXISTS emissary_client_event(
 		id TEXT PRIMARY KEY,
 		device_id TEXT NOT NULL,
+		device_ip TEXT NOT NULL,
 		type TEXT NOT NULL,
 		target_service TEXT,
 		connection_type TEXT,
@@ -26,6 +27,7 @@ func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {
 var queryLatestDeviceEventForEachDevice = `
 SELECT
     c.id AS device_id,
+	device_ip,
     c.name AS device_name,
     e.type,
     e.target_service,
@@ -35,6 +37,7 @@ FROM
     (
         SELECT
             device_id,
+			device_ip,
             type,
             target_service,
             connection_type,
@@ -48,22 +51,22 @@ WHERE
     e.rn = 1;
 	`
 
-func (r *SQLiteRepository) InsertEmissaryClientEvent(event emissary.Event) (*emissary.Event, error) {
+func (r *SQLiteRepository) InsertEmissaryClientEvent(event emissary.Event) error {
 	_, err := r.db.Exec(
 		"INSERT INTO emissary_client_event(id, device_id, device_ip, type, target_service, connection_type, timestamp) values(?,?,?,?,?,?,?)",
 		&event.ID,
 		&event.DeviceID,
-		&event.DeviceIP,
+		&event.ConnectionIP,
 		&event.Type,
 		&event.TargetService,
 		&event.ConnectionType,
 		&event.Timestamp,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting emissary event: %s", err)
+		return fmt.Errorf("error inserting emissary event: %s", err)
 	}
 
-	return &event, nil
+	return nil
 }
 
 // Gets the latest event for each device to use in the Device Fleet view in the dashboard.
@@ -85,7 +88,7 @@ func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []string) (ma
 		if err := rows.Scan(
 			&event.ID,
 			&event.DeviceID,
-			&event.DeviceIP,
+			&event.ConnectionIP,
 			&event.Type,
 			&event.TargetService,
 			&event.ConnectionType,
@@ -113,7 +116,7 @@ func (r *SQLiteRepository) GetLatestEventForDeviceId(deviceID string) (*emissary
 		if err := rows.Scan(
 			&event.ID,
 			&event.DeviceID,
-			&event.DeviceIP,
+			&event.ConnectionIP,
 			&event.Type,
 			&event.TargetService,
 			&event.ConnectionType,
