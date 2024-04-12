@@ -9,6 +9,10 @@
     -moz-user-select: none; /* Firefox */
 }
 
+#content h2 {
+    margin-top: 60px;
+}
+
 #devices {
     min-width: 100%;
 }
@@ -47,4 +51,8 @@ body {
 
 #emissary-bundle-btn {
     font-size: large;
+}
+
+.fleet-device {
+    margin-bottom: 50px;
 }
