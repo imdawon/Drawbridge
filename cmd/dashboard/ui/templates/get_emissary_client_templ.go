@@ -68,9 +68,9 @@ func GetEmissaryClient(client *emissary.EmissaryClient, latestClientEvent *emiss
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.Timestamp.String())
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.Timestamp)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 14, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 14, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -81,9 +81,9 @@ func GetEmissaryClient(client *emissary.EmissaryClient, latestClientEvent *emiss
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 string
-				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.DeviceIP)
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.ConnectionIP)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 15, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 15, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -138,9 +138,9 @@ func GetEmissaryClient(client *emissary.EmissaryClient, latestClientEvent *emiss
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var9 string
-				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.Timestamp.String())
+				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.Timestamp)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 20, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 20, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -151,9 +151,9 @@ func GetEmissaryClient(client *emissary.EmissaryClient, latestClientEvent *emiss
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var10 string
-				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.DeviceIP)
+				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(latestClientEvent.ConnectionIP)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 21, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/dashboard/ui/templates/get_emissary_client.templ`, Line: 21, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
