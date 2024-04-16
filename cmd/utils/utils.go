@@ -378,22 +378,22 @@ func BeautifulTimeSince(timestamp string) string {
 
 	switch {
 	case duration < minuteThreshold:
-		return "less than a minute ago"
+		return "Less than a minute ago"
 	case duration < 2*minuteThreshold:
-		return "around a minute ago"
+		return "Around a minute ago"
 	case duration < hourThreshold:
 		minutes := int(duration.Minutes())
-		return fmt.Sprintf("%d minutes ago", minutes)
+		return fmt.Sprintf("Around %d minutes ago", minutes)
 	case duration < 2*hourThreshold:
-		return "around 1 hour ago"
+		return "Around 1 hour ago"
 	case duration < dayThreshold:
 		hours := int(duration.Hours())
-		return fmt.Sprintf("around %d hours ago", hours)
+		return fmt.Sprintf("Around %d hours ago", hours)
 	default:
 		days := int(duration.Hours() / 24)
 		if days == 1 {
-			return "1 day ago"
+			return "Around 1 day ago"
 		}
-		return fmt.Sprintf("%d days ago", days)
+		return fmt.Sprintf("Around %d days ago", days)
 	}
 }
