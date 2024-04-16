@@ -291,13 +291,18 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			if emissaryRequestType != "PS_LIST" {
 				emissaryRequestedServiceId = emissaryRequestPayload[8:11]
 			}
+
+			// Create and insert an Emissary event into the db.
 			eventUUID, err := utils.NewUUID()
 			if err != nil {
 				slog.Error("Emissary Event", slog.Any("Error", err))
 			}
+			// Retrieve the client certificate from the connection by casting the connection as a tls.Conn.
+			clientCert := clientConn.(*tls.Conn).ConnectionState().PeerCertificates[0]
+			deviceUUID := clientCert.Subject.SerialNumber
 			event := emissary.Event{
 				ID:             eventUUID,
-				DeviceID:       eventUUID,
+				DeviceID:       deviceUUID,
 				ConnectionIP:   conn.RemoteAddr().String(),
 				Type:           emissaryRequestType,
 				TargetService:  emissaryRequestedServiceId,
@@ -312,7 +317,8 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				slog.Error("Emissary Event", slog.Any("DB Error", err))
 			}
 
-			if emissaryRequestType == "PS_CONN" {
+			switch emissaryRequestType {
+			case "PS_CONN":
 				// May be used later after we standardize how and when to read the tcp connection into the buf above.
 				// d.getRequestProtectedServiceName(clientConn)
 				emissaryRequestedServiceIdNum, err := strconv.Atoi(emissaryRequestedServiceId)
@@ -357,11 +363,9 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				io.Copy(clientConn, resourceConn)
 				// Shut down the connection.
 				clientConn.Close()
-
-			} else {
+			case "PS_LIST":
 				// On a new connection, write available services to TCP connection so Emissary can know which
-				// d.ProtectedServices
-
+				// Protected Services are available
 				var serviceList string
 				for _, value := range d.ProtectedServices {
 					// We pad the service id with zeros as we want a fixed-width id for easy parsing. This will allow support for up to 1000 Protected Services.
@@ -369,6 +373,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				}
 				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s", serviceList)
 				clientConn.Write([]byte(serviceConnectCommand))
+			default:
 			}
 		}(conn)
 	}

@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Save file if it does not already exist.
@@ -358,4 +359,41 @@ func NewUUID() (string, error) {
 
 func RandInt(min, max int) int {
 	return min + rand.Intn(max-min)
+}
+
+func BeautifulTimeSince(timestamp string) string {
+	// Parse the timestamp string
+	t, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		return "Invalid timestamp"
+	}
+
+	// Calculate the duration between the timestamp and the current time
+	duration := time.Since(t)
+
+	// Define the time thresholds
+	minuteThreshold := time.Minute
+	hourThreshold := time.Hour
+	dayThreshold := 24 * time.Hour
+
+	switch {
+	case duration < minuteThreshold:
+		return "less than a minute ago"
+	case duration < 2*minuteThreshold:
+		return "around a minute ago"
+	case duration < hourThreshold:
+		minutes := int(duration.Minutes())
+		return fmt.Sprintf("%d minutes ago", minutes)
+	case duration < 2*hourThreshold:
+		return "around 1 hour ago"
+	case duration < dayThreshold:
+		hours := int(duration.Hours())
+		return fmt.Sprintf("around %d hours ago", hours)
+	default:
+		days := int(duration.Hours() / 24)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	}
 }
