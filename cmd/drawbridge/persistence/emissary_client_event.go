@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"dhens/drawbridge/cmd/drawbridge/emissary"
+	"dhens/drawbridge/cmd/utils"
 	"fmt"
 )
 
@@ -26,16 +27,17 @@ func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {
 
 var queryLatestDeviceEventForEachDevice = `
 SELECT
-    c.id AS device_id,
-	device_ip,
-    c.name AS device_name,
-    e.type,
-    e.target_service,
-    e.connection_type,
-    e.timestamp
+	e.id AS event_id,
+	e.device_id,
+	e.device_ip,
+	e.type,
+	e.target_service,
+	e.connection_type,
+	e.timestamp
 FROM
     (
         SELECT
+			id,
             device_id,
 			device_ip,
             type,
@@ -96,6 +98,7 @@ func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []string) (ma
 		); err != nil {
 			return nil, fmt.Errorf("error scanning emissary client database row into a emissary client struct: %s", err)
 		}
+		event.Timestamp = utils.BeautifulTimeSince(event.Timestamp)
 		events[event.DeviceID] = event
 	}
 	return events, nil
