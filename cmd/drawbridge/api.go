@@ -50,7 +50,9 @@ type Drawbridge struct {
 	ActiveEmissaryTunnels EmissaryTunnels
 }
 
-type EmissaryTunnels map[string]net.Conn
+// deviceuuid: net.Conn
+// Used to close all connections for a device once revoked.
+type EmissaryTunnels map[string][]net.Conn
 
 type EmissaryConfig struct {
 	Platform string `schema:"emissary-platform"`
