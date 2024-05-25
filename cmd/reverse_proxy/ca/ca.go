@@ -15,7 +15,6 @@ import (
 	"dhens/drawbridge/cmd/utils"
 	"encoding/hex"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -92,6 +91,14 @@ func (c *CA) SetupCertificates() error {
 			Certificates: []tls.Certificate{serverCert},
 			MinVersion:   tls.VersionTLS13,
 		}
+
+		// Populate the certificate authority's list of emissary certificates.
+		// Is used to lookup emissary client certs for revocation status to allow deny access to Drawbridge.
+		emissaryClientCertificates, err := c.DB.GetAllEmissaryClientCertificates()
+		if err != nil {
+			return err
+		}
+		c.CertificateList = emissaryClientCertificates
 
 		// Terminate function early as we have all of the cert and key data we need.
 		slog.Info("Loaded TLS Certs & Keys")
@@ -287,25 +294,29 @@ func (c *CA) SetupCertificates() error {
 	return nil
 }
 
-// THIS FUNCTION NEEDS TO BE FAST TO NOT DELAY HANDSHAKE
-// Run for every Drawbridge + Emissary handshake to verify the presented cert is not revoked.
-func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-	// Parse the peer certificate
-	// PEM encode
+// Parse the peer certificate
+func hashEmissaryCertificate(rawCert []byte) string {
 	caPEM := new(bytes.Buffer)
 	pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: rawCerts[0],
+		Bytes: rawCert,
 	})
 
 	// Calculate the SHA-256 hash of the peer certificate
 	hash := sha256.Sum256(caPEM.Bytes())
 	hexHash := hex.EncodeToString(hash[:])
+	return hexHash
+}
 
+// THIS FUNCTION NEEDS TO BE FAST TO NOT DELAY HANDSHAKE
+// Run for every Drawbridge + Emissary handshake to verify the presented cert is not revoked.
+func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	// Parse the peer certificate
+	hexHash := hashEmissaryCertificate(rawCerts[0])
 	// Check if the certificate hash is in the revocation list
 	if c.CertificateList[hexHash].Revoked == 1 {
 		slog.Debug("peer cert is REVOKED")
-		return errors.New("peer certificate is revoked")
+		return fmt.Errorf("peer certificate is revoked")
 	}
 
 	// Additional certificate verification checks can be added here
@@ -322,7 +333,7 @@ func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
 	defer revokedCertsMutex.Unlock()
 	cert, ok := c.CertificateList[shaCert]
 	if !ok {
-		slog.Error("Unable to revoke certificate", shaCert)
+		slog.Error("Unable to revoke certificate as it doesn't exist in the certificate list", shaCert)
 	}
 	certCopy := cert
 	certCopy.Revoked = 1

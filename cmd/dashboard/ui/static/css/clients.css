@@ -52,3 +52,7 @@
 .fleet-device {
     margin-bottom: 50px;
 }
+
+#service-name {
+    font-size: large;
+}
