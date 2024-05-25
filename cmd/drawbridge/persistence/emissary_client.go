@@ -63,7 +63,7 @@ func (r *SQLiteRepository) GetAllEmissaryClients() ([]*emissary.EmissaryClient, 
 }
 
 func (r *SQLiteRepository) GetAllEmissaryClientCertificates() (map[string]emissary.DeviceCertificate, error) {
-	rows, err := r.db.Query("SELECT drawbridge_certificate AND id AND revoked FROM emissary_client WHERE revoked = 1")
+	rows, err := r.db.Query("SELECT drawbridge_certificate, id, revoked FROM emissary_client")
 	if err != nil {
 		return nil, fmt.Errorf("error getting all emissary clients: %s", err)
 	}

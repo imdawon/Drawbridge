@@ -124,7 +124,7 @@ func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []services.Pr
 // An Emissary TCP Mutual TLS Key is used to allow the Emissary Client to connect to Drawbridge directly.
 // The user will connect to the local proxy server the Emissary Client creates and all traffic will then flow
 // through Drawbridge.
-func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overrideDirectory ...string) (*string, error) {
+func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId, platform string, overrideDirectory ...string) (*string, error) {
 	var directoryToSave string
 	if len(overrideDirectory) == 0 {
 		directoryToSave = "./emissary_certs_and_key_here"
@@ -189,16 +189,35 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId string, overri
 		return nil, err
 	}
 
-	certPrivKeyPEMBytes, err := x509.MarshalECPrivateKey(clientCertPrivKey)
-	if err != nil {
-		return nil, err
+	// Android is a special little platform. The Kotlin/Java stdlib seems to only have support for the
+	// PKCS8 format. We generate a key in this format for Android to avoid complicated conversion code
+	// on the Android client.
+	var certPrivKeyPEMBytes []byte
+	var certPrivKeyPEM *bytes.Buffer
+	if platform == "android" {
+		certPrivKeyPEMBytes, err = x509.MarshalPKCS8PrivateKey(clientCertPrivKey)
+		if err != nil {
+			return nil, err
+		}
+		certPrivKeyPEM = new(bytes.Buffer)
+		pem.Encode(certPrivKeyPEM, &pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: certPrivKeyPEMBytes,
+		})
+		// For non-Android platforms, use the EC Private Key format.
+	} else {
+		certPrivKeyPEMBytes, err = x509.MarshalECPrivateKey(clientCertPrivKey)
+		if err != nil {
+			return nil, err
+		}
+		certPrivKeyPEM = new(bytes.Buffer)
+		pem.Encode(certPrivKeyPEM, &pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: certPrivKeyPEMBytes,
+		})
+
 	}
 
-	certPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivKeyPEM, &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: certPrivKeyPEMBytes,
-	})
 	// Save the file to disk for use by an Emissary client. This should be later used and saved in the db for downloading later.
 	err = utils.SaveFile("emissary-mtls-tcp.key", certPrivKeyPEM.String(), directoryToSave)
 	if err != nil {
@@ -357,7 +376,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 					slog.Error("Failed to tcp dial to actual target service", err)
 				}
 
-				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s\n", clientConn.RemoteAddr()))
+				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s", clientConn.RemoteAddr()))
 				// Copy data back and from client and server.
 				go io.Copy(resourceConn, clientConn)
 				io.Copy(clientConn, resourceConn)
@@ -371,7 +390,10 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 					// We pad the service id with zeros as we want a fixed-width id for easy parsing. This will allow support for up to 1000 Protected Services.
 					serviceList += fmt.Sprintf("%s%s,", utils.PadWithZeros(int(value.Service.ID)), value.Service.Name)
 				}
-				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s", serviceList)
+				// The newline character is important for other platforms, such as Android,
+				// to properly read the string from the socket without blocking.
+				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s\n", serviceList)
+				slog.Debug(fmt.Sprintf("PS_LIST values: %s\n", serviceConnectCommand))
 				clientConn.Write([]byte(serviceConnectCommand))
 			default:
 			}
@@ -428,8 +450,13 @@ type BundleFile struct {
 // To accomplish this, we pull the latest version of Emissary from GitHub Releases, verify it is signed with the
 // Drawbridge & Emissary signing key, generate the mTLS key(s) and cert, zip it all up, and allow the Drawbridge admin to download it.
 func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile, error) {
-	if config.Platform != "macos" && config.Platform != "linux" && config.Platform != "windows" {
+	if config.Platform != "macos" && config.Platform != "linux" && config.Platform != "windows" && config.Platform != "android" {
 		return nil, fmt.Errorf("platform %s is not supported", config.Platform)
+	}
+
+	if config.Platform == "android" || config.Platform == "ios" {
+		slog.Debug("Making mobile platform Emissary Bundle")
+		return d.generateMobileEmissaryBundle(config.Platform)
 	}
 
 	// Get assets url
@@ -571,7 +598,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 		return nil, fmt.Errorf("error generating uuid: %w", err)
 	}
 	certsAndKeysFolderPath := "./bundle_tmp/put_certificates_and_key_from_drawbridge_here"
-	emissaryCert, err := d.CreateEmissaryClientTCPMutualTLSKey(clientId, certsAndKeysFolderPath)
+	emissaryCert, err := d.CreateEmissaryClientTCPMutualTLSKey(clientId, config.Platform, certsAndKeysFolderPath)
 	if err != nil {
 		return nil, err
 	}
@@ -621,9 +648,9 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 }
 
 func (d *Drawbridge) createEmissaryDevice(id, certificate string) error {
-	intOne := utils.RandInt(0, len(Adjectives))
-	intTwo := utils.RandInt(0, len(Animals))
-	deviceName := fmt.Sprintf("%s %s", Adjectives[intOne], Animals[intTwo])
+	adjectivesIndex := utils.RandInt(0, len(Adjectives))
+	animalsIndex := utils.RandInt(0, len(Animals))
+	deviceName := fmt.Sprintf("%s %s", Adjectives[adjectivesIndex], Animals[animalsIndex])
 
 	client := emissary.EmissaryClient{
 		ID:                    id,
@@ -636,4 +663,67 @@ func (d *Drawbridge) createEmissaryDevice(id, certificate string) error {
 		return fmt.Errorf("error creating emissary client: %w", err)
 	}
 	return nil
+}
+
+// Generate an Emissary Bundle for a mobile device.
+// We can't fling .apk or .ipa files at mobile users, so we instead just ship the bundle with our certs, keypair, and drawbridge address.
+func (d *Drawbridge) generateMobileEmissaryBundle(platform string) (*BundleFile, error) {
+	bundleTmpFolderPath := "./bundle_tmp"
+	// Create temporary directory used for placing Emissary files to zip up for use as the downloadable Emissary Bundle.
+	os.Mkdir(utils.CreateDrawbridgeFilePath(bundleTmpFolderPath), os.ModePerm)
+
+	// Generate and save the mTLS key(s) and cert
+	clientId, err := utils.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("error generating uuid: %w", err)
+	}
+	certsAndKeysFolderPath := "./bundle_tmp/put_certificates_and_key_from_drawbridge_here"
+	emissaryCert, err := d.CreateEmissaryClientTCPMutualTLSKey(clientId, platform, certsAndKeysFolderPath)
+	if err != nil {
+		return nil, err
+	}
+	// Copy ca.crt next to keys
+	err = utils.CopyFile("./ca/ca.crt", certsAndKeysFolderPath)
+	if err != nil {
+		slog.Error("Emissary Bundle Creation", slog.Any("Error", fmt.Errorf("unable to copy the Drawbridge ca.crt file to the Emissary Bundle put_certificates_... folder: %s", err)))
+		return nil, err
+	}
+	// Generate and save bundle using Drawbridge listening address
+	listeningAddress, err := d.DB.GetDrawbridgeConfigValueByName("listening_address")
+	if err != nil {
+		return nil, err
+	}
+	if len(*listeningAddress) > 0 {
+		// TODO
+		// Change the port hardcoding and write the listening port in the lsiteningAddress config file instead.
+		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:3100", *listeningAddress), "./bundle_tmp/bundle")
+	} else {
+		slog.Error("Emissary Bundle Creation", slog.String("Error", "Unable to get Drawbridge listening address. Unable to finish creating bundle."))
+		return nil, fmt.Errorf("error getting Drawbridge listening address")
+	}
+	// Zip up Emissary directory to bundles output folder.
+	bundledFilename := fmt.Sprintf("./android_bundle_%s", clientId)
+	// TODO
+	// return the file contents rather than writing to disk by default.
+	// there are tons of situations where we'd prefer to just hand off the bytes to the Drawbridge admin in the
+	// form of a file.
+	utils.ZipSource(bundleTmpFolderPath, bundledFilename)
+
+	// Serve to Drawbridge admin
+	slog.Debug("reading bundled emissary output file to send back to admin...")
+	bundledEmissaryZipFile := utils.ReadFile(bundledFilename)
+	// Remove temp folders
+	defer os.RemoveAll("./bundle_tmp")
+	defer os.RemoveAll("./emissary_download_scratch")
+	bundleFile := BundleFile{
+		Contents: bundledEmissaryZipFile,
+		Name:     bundledFilename,
+	}
+
+	err = d.createEmissaryDevice(clientId, *emissaryCert)
+	if err != nil {
+		return nil, err
+	}
+	return &bundleFile, nil
+
 }
