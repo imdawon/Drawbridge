@@ -46,7 +46,7 @@ FROM
             timestamp,
             ROW_NUMBER() OVER (PARTITION BY device_id ORDER BY timestamp DESC) AS rn
         FROM emissary_client_event
-        WHERE device_id IN (?)
+        WHERE device_id IN (%s)
     ) e
     JOIN emissary_client c ON e.device_id = c.id
 WHERE
@@ -73,12 +73,15 @@ func (r *SQLiteRepository) InsertEmissaryClientEvent(event emissary.Event) error
 
 // Gets the latest event for each device to use in the Device Fleet view in the dashboard.
 // Returns a map with the key being the device id and value being the event itself.
-func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []string) (map[string]emissary.Event, error) {
+func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []any) (map[string]emissary.Event, error) {
 	deviceIDsLen := len(deviceIDs)
 	if deviceIDsLen == 0 {
 		return nil, fmt.Errorf("no deviceIDs supplied to get latest event for each device id")
 	}
-	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceIDs[0])
+
+	queryPlaceholders := utils.GeneratePlaceholders(deviceIDsLen)
+	queryLatestDeviceEventForEachDevice := fmt.Sprintf(queryLatestDeviceEventForEachDevice, queryPlaceholders)
+	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceIDs...)
 	if err != nil {
 		return nil, fmt.Errorf("error getting latest event for each emissary client: %s", err)
 	}
@@ -108,6 +111,7 @@ func (r *SQLiteRepository) GetLatestEventForDeviceId(deviceID string) (*emissary
 	if len(deviceID) == 0 {
 		return nil, fmt.Errorf("no deviceIDs supplied to get latest event for each device id")
 	}
+	queryLatestDeviceEventForEachDevice := fmt.Sprintf(queryLatestDeviceEventForEachDevice, "?")
 	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting latest event for each emissary client: %s", err)

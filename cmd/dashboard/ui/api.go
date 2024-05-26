@@ -267,7 +267,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			slog.Error("error getting all emissary clients: %w", err)
 		}
 
-		var deviceIDs []string
+		var deviceIDs []any
 		for _, client := range clients {
 			deviceIDs = append(deviceIDs, client.ID)
 		}

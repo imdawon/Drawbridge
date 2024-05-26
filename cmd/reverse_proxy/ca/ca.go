@@ -344,7 +344,13 @@ func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
 func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
 	revokedCertsMutex.Lock()
 	defer revokedCertsMutex.Unlock()
-	delete(c.CertificateList, shaCert)
+	cert, ok := c.CertificateList[shaCert]
+	if !ok {
+		slog.Error("Unable to unrevoke certificate as it doesn't exist in the certificate list", shaCert)
+	}
+	certCopy := cert
+	certCopy.Revoked = 0
+	c.CertificateList[shaCert] = certCopy
 }
 
 // If someone is listening on a LAN address, we don't want to listen on all interfaces like we do if someone uses their

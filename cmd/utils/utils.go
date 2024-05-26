@@ -397,3 +397,12 @@ func BeautifulTimeSince(timestamp string) string {
 		return fmt.Sprintf("Around %d days ago", days)
 	}
 }
+
+// generatePlaceholders generates a string with n number of SQLite placeholders separated by commas.
+func GeneratePlaceholders(n int) string {
+	placeholders := make([]string, n)
+	for i := 0; i < n; i++ {
+		placeholders[i] = "?"
+	}
+	return strings.Join(placeholders, ", ")
+}

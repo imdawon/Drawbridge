@@ -137,27 +137,27 @@ func (r *SQLiteRepository) UpdateEmissaryClient(updated *emissary.EmissaryClient
 
 // Marks a device as revoked, which keeps it from being able to connect to Drawbridge at all.
 // We do this by adding the Emissary client certificate to Drawbridge's Certificate Revocation List.
-func (r *SQLiteRepository) RevokeEmissaryClient(id string) (*emissary.EmissaryClient, *emissary.Event, error) {
+func (r *SQLiteRepository) RevokeEmissaryClient(deviceID string) (*emissary.EmissaryClient, *emissary.Event, error) {
 	ctx := context.Background()
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, nil, err
 	}
-	_, err = tx.Exec("UPDATE emissary_client SET revoked = 1 WHERE id = ?", id)
+	_, err = tx.Exec("UPDATE emissary_client SET revoked = 1 WHERE id = ?", deviceID)
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, nil, fmt.Errorf("error unrevoking emissary client with id of %s: %s", id, err)
+		return nil, nil, fmt.Errorf("error unrevoking emissary client with id of %s: %s", deviceID, err)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, nil, err
 	}
-	client, err := r.GetEmissaryClientById(id)
+	client, err := r.GetEmissaryClientById(deviceID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting emissary client after revoking it: %w", err)
 	}
 
-	event, err := r.GetLatestEventForDeviceId(id)
+	event, err := r.GetLatestEventForDeviceId(deviceID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting latest event for revoked client: %w", err)
 	}
