@@ -51,6 +51,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	// Use gzip
+	r.Use(middleware.Compress(5, "gzip"))
 
 	r.Get("/admin/get/emissary/bundle", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
