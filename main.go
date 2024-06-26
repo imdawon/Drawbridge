@@ -19,17 +19,23 @@ import (
 
 func main() {
 	flagger.FLAGS = &flagger.CommandLineArgs{}
+	flag.UintVar(
+		&flagger.FLAGS.DrawbridgePort,
+		"api",
+		3100,
+		"listening port for the drawbridge mTLS TCP server - emissary connects directly to this e.g 3100",
+	)
 	flag.StringVar(
 		&flagger.FLAGS.FrontendAPIHostAndPort,
 		"fapi",
 		"localhost:3000",
-		"listening host and port for the drawbridge dashboard page e.g localhost:3000",
+		"listening host and port for the drawbridge dashboard page e.g 'localhost:3000'",
 	)
 	flag.StringVar(
 		&flagger.FLAGS.BackendAPIHostAndPort,
-		"api",
+		"jsonapi",
 		"localhost:3001",
-		"(currently unused) listening host and port for emissary api e.g localhost:3001",
+		"(currently unused) listening host and port for emissary json http api e.g 'localhost:3001'",
 	)
 	flag.StringVar(
 		&flagger.FLAGS.SqliteFilename,
@@ -41,7 +47,7 @@ func main() {
 		&flagger.FLAGS.Env,
 		"env",
 		"production",
-		"the environment that Drawbridge is running in (production, development). development mode increases logging verbosity.",
+		"the environment that Drawbridge is running in ('production', 'development'). development mode increases logging verbosity.",
 	)
 	flag.Parse()
 
@@ -84,6 +90,7 @@ func main() {
 	drawbridgeAPI := &drawbridge.Drawbridge{
 		ProtectedServices: make(map[int64]services.RunningProtectedService, 0),
 		DB:                db,
+		ListeningPort:     flagger.FLAGS.DrawbridgePort,
 	}
 
 	// Onboarding configuration has been complete and we can load all existing config files and start servers.
@@ -157,8 +164,7 @@ func main() {
 	frontendController := ui.Controller{
 		DrawbridgeAPI:     drawbridgeAPI,
 		ProtectedServices: services,
-		DB:                db,
-	}
+		DB:                db}
 
 	// Set up templ controller used to return hypermedia to our htmx frontend.
 	frontendController.SetUp(flagger.FLAGS.FrontendAPIHostAndPort)

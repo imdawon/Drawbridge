@@ -47,6 +47,7 @@ type Drawbridge struct {
 	ProtectedServices map[int64]services.RunningProtectedService
 	Settings          *Settings
 	DB                *persistence.SQLiteRepository
+	ListeningPort     uint
 }
 
 type EmissaryConfig struct {
@@ -275,9 +276,9 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 	if err != nil {
 		slog.Error("Database", slog.Any("Error: %s", err))
 	}
-	addressAndPort := fmt.Sprintf("%s:3100", *listeningAddress)
+	addressAndPort := fmt.Sprintf("%s:%d", *listeningAddress, d.ListeningPort)
 	slog.Info(fmt.Sprintf("Starting Drawbridge reverse proxy tunnel. Emissary clients can reach Drawbridge at %s", addressAndPort))
-	l, err := tls.Listen("tcp", "0.0.0.0:3100", d.CA.ServerTLSConfig)
+	l, err := tls.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", d.ListeningPort), d.CA.ServerTLSConfig)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Reverse proxy TCP Listen failed: %s", err))
 	}
@@ -616,7 +617,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	if len(*listeningAddress) > 0 {
 		// TODO
 		// Change the port hardcoding and write the listening port in the lsiteningAddress config file instead.
-		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:3100", *listeningAddress), "./bundle_tmp/bundle")
+		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:%d", *listeningAddress, d.ListeningPort), "./bundle_tmp/bundle")
 	} else {
 		slog.Error("Emissary Bundle Creation", slog.String("Error", "Unable to get Drawbridge listening address. Unable to finish creating bundle."))
 		return nil, fmt.Errorf("error getting Drawbridge listening address")
@@ -696,7 +697,7 @@ func (d *Drawbridge) generateMobileEmissaryBundle(platform string) (*BundleFile,
 	if len(*listeningAddress) > 0 {
 		// TODO
 		// Change the port hardcoding and write the listening port in the lsiteningAddress config file instead.
-		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:3100", *listeningAddress), "./bundle_tmp/bundle")
+		utils.SaveFile("drawbridge.txt", fmt.Sprintf("%s:%d", *listeningAddress, d.ListeningPort), "./bundle_tmp/bundle")
 	} else {
 		slog.Error("Emissary Bundle Creation", slog.String("Error", "Unable to get Drawbridge listening address. Unable to finish creating bundle."))
 		return nil, fmt.Errorf("error getting Drawbridge listening address")
