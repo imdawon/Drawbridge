@@ -203,7 +203,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		decoder.Decode(&newService, r.Form)
 		// Rewrite a host input from the Drawbridge admin so we don't get errors trying to parse
 		// the "localhost" string as a net.IP.
-		if newService.Host == "localhost" {
+		if strings.TrimSpace(newService.Host) == "localhost" {
 			newService.Host = "127.0.0.1"
 		}
 		newServiceWithId, err := f.DB.CreateNewService(newService)
