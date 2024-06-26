@@ -79,7 +79,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			}
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, `<span class="error">Error Creating Emissary Bundle: Nil File Contents. Please go back and try again.</span>`, err)
+			fmt.Fprintf(w, `<span class="error">Error Creating Emissary Bundle: Nil File Contents. Please go back and try again.</span>`)
 		}
 	})
 
@@ -90,7 +90,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			fmt.Fprintf(w, "...")
 		} else {
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "%s:%d", *listeningAddress, 3100)
+			fmt.Fprintf(w, "%s:%d", *listeningAddress, f.DrawbridgeAPI.ListeningPort)
 		}
 	})
 
@@ -139,7 +139,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		// services that require the CA to operate, like the mTLS reverse proxy.
 		go f.DrawbridgeAPI.SetUpCAAndDependentServices(f.ProtectedServices)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "%s:%d", newSettings.ListenerAddress, 3100)
+		fmt.Fprintf(w, "%s:%d", newSettings.ListenerAddress, f.DrawbridgeAPI.ListeningPort)
 	})
 
 	r.Patch("/admin/patch/config", func(w http.ResponseWriter, r *http.Request) {
@@ -167,7 +167,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "%s:%d", newSettings.ListenerAddress, 3100)
+		fmt.Fprintf(w, "%s:%d", newSettings.ListenerAddress, f.DrawbridgeAPI.ListeningPort)
 	})
 
 	r.Get("/admin/get/onboarding_modal", func(w http.ResponseWriter, r *http.Request) {
