@@ -129,6 +129,8 @@ func main() {
 		go drawbridgeAPI.SetUpCAAndDependentServices(services)
 	}
 
+	drawbridgeAPI.ListeningAddress = *listeningAddress
+
 	// Initalize DAU ping only if enabled by the Drawbridge admin.
 	dauPingEnabled, err := db.GetDrawbridgeConfigValueByName("dau_ping_enabled")
 	if err != nil {

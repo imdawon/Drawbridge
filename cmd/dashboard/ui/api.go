@@ -86,14 +86,8 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	})
 
 	r.Get("/admin/get/config", func(w http.ResponseWriter, r *http.Request) {
-		listeningAddress, err := f.DB.GetDrawbridgeConfigValueByName("listening_address")
-		if err != nil {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "...")
-		} else {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "%s:%d", *listeningAddress, f.DrawbridgeAPI.ListeningPort)
-		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "%s:%d", f.DrawbridgeAPI.ListeningAddress, f.DrawbridgeAPI.ListeningPort)
 	})
 
 	// Write the Drawbridge listener address to the listening_address.txt config file.
@@ -120,11 +114,14 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			newSettings.ListenerAddress = "127.0.0.1"
 		}
 
-		err := f.DB.CreateNewDrawbridgeConfigSettings("listening_address", strings.TrimSpace(newSettings.ListenerAddress))
+		newListeningAddress := strings.TrimSpace(newSettings.ListenerAddress)
+		err := f.DB.CreateNewDrawbridgeConfigSettings("listening_address", newListeningAddress)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
 		}
+
+		f.DrawbridgeAPI.ListeningAddress = newListeningAddress
 
 		err = f.DB.CreateNewDrawbridgeConfigSettings("dau_ping_enabled", strconv.FormatBool(newSettings.EnableDAUPing))
 		if err != nil {
@@ -153,12 +150,14 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			newSettings.ListenerAddress = "127.0.0.1"
 		}
 		if newSettings.ListenerAddress != "" {
-			err := f.DB.CreateNewDrawbridgeConfigSettings("listening_address", strings.TrimSpace(newSettings.ListenerAddress))
+			newListeningAddress := strings.TrimSpace(newSettings.ListenerAddress)
+			err := f.DB.CreateNewDrawbridgeConfigSettings("listening_address", newListeningAddress)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "<span class=\"error-response\">Error saving listening address. Please try again.<span>")
 				return
 			}
+			f.DrawbridgeAPI.ListeningAddress = newListeningAddress
 		}
 
 		err := f.DB.CreateNewDrawbridgeConfigSettings("dau_ping_enabled", strconv.FormatBool(newSettings.EnableDAUPing))
@@ -173,8 +172,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	})
 
 	r.Get("/admin/get/onboarding_modal", func(w http.ResponseWriter, r *http.Request) {
-		listeningAddress, err := f.DB.GetDrawbridgeConfigValueByName("listening_address")
-		if *listeningAddress == "" && err == nil {
+		if f.DrawbridgeAPI.ListeningAddress == "" {
 			templates.GetOnboardingModal().Render(r.Context(), w)
 		} else {
 			// Serve nothing since we already have set a listening address (onboarding has already happened).
@@ -184,23 +182,18 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	})
 
 	r.Get("/admin/get/onboarding_modal_config", func(w http.ResponseWriter, r *http.Request) {
-		listeningAddress, err := f.DB.GetDrawbridgeConfigValueByName("listening_address")
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "<span class=\"error-response\">Error getting required data (1) to configure Drawbridge settings. Please try again.<span>")
-		}
 		dauPingEnabled, err := f.DB.GetDrawbridgeConfigValueByName("dau_ping_enabled")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "<span class=\"error-response\">Error getting required data (2) to configure Drawbridge settings. Please try again.<span>")
 		}
-		if *listeningAddress != "" && dauPingEnabled != nil {
+		if f.DrawbridgeAPI.ListeningAddress != "" && dauPingEnabled != nil {
 			dauPingEnabledValue, err := strconv.ParseBool(*dauPingEnabled)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "<span class=\"error-response\">Error parsing required data to configure Drawbridge settings. Please try again.<span>")
 			}
-			templates.GetOnboardingModalConfigure(*listeningAddress, dauPingEnabledValue).Render(r.Context(), w)
+			templates.GetOnboardingModalConfigure(f.DrawbridgeAPI.ListeningAddress, dauPingEnabledValue).Render(r.Context(), w)
 		}
 	})
 
