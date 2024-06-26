@@ -47,6 +47,7 @@ type Drawbridge struct {
 	ProtectedServices map[int64]services.RunningProtectedService
 	Settings          *Settings
 	DB                *persistence.SQLiteRepository
+	ListeningAddress  string
 	ListeningPort     uint
 }
 
