@@ -11,6 +11,7 @@
 --fapi <ip:port> (default localhost:3000): listening host and port for the drawbridge dashboard page e.g 'localhost:3000'. This is useful when you want to access the frontend remotely. This is not recommended as there are no access controls for the Drawbridge dashboard currently. Once exposed remotely, you can add the Drawbridge dashboard itself as a Protected Service, then access the Dashboard via Emissary going forward. Once you confirm you can access the Dashboard via Emissary, we reccomend to unset the --fapi arg so it will only be exposed to authorized Emissary devices.
 --sqlfile <filename> (default sqlite.db): file name for Drawbridge sqlite database e.g 'drawbridge.db'
 --env <production|development> (default: production): the environment that Drawbridge is running in ('production', 'development'). development mode increases logging verbosity.
+(unused) --jsonapi <ip:port> (no default): listening host and port for emissary json http api e.g 'localhost:3001'
 ```
 
 ## The state of self-hosting
