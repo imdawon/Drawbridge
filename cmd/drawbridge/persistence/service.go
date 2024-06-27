@@ -143,7 +143,8 @@ func (r *SQLiteRepository) DeleteService(id int) error {
 }
 
 func OpenDatabaseFile(filename string) *sql.DB {
-	db, err := sql.Open("sqlite", filename)
+	db, err := sql.Open("sqlite", fmt.Sprintf("%s?cache=shared", filename))
+	db.SetMaxOpenConns(1)
 	if err != nil {
 		log.Fatalf("Error opening sqlite db: %s", err)
 	}
