@@ -298,7 +298,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			buf := make([]byte, 256)
 			_, err := conn.Read(buf)
 			if err != nil {
-				fmt.Println(err)
+				slog.Error("Protected Service", slog.Any("Connection Read Error: %w", err))
 				return
 			}
 			// Trim unused buffer null terminating characters.
