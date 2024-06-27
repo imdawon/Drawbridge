@@ -208,12 +208,12 @@ func (f *Controller) SetUp(hostAndPort string) error {
 		}
 		newServiceWithId, err := f.DB.CreateNewService(newService)
 		if err != nil {
-			slog.Error("error creatng new service: %w", err)
+			slog.Error("error creating new protected service: %w", err)
 		}
 
 		services, err := f.DB.GetAllServices()
 		if err != nil {
-			slog.Error("Could not get all services: %s", err)
+			slog.Error("Could not get all protected services: %s", err)
 		}
 		templates.GetServices(services).Render(r.Context(), w)
 
