@@ -31,8 +31,9 @@ type CA struct {
 	CertificateAuthority *x509.Certificate
 	PrivateKey           crypto.PrivateKey
 	DB                   *persistence.SQLiteRepository
-	// sha256 key of certificate -> device uuid and revoked
-	CertificateList map[string]emissary.DeviceCertificate
+	// sha256 key of certificate -> device uuid and revoked value (0 for false| 1 for true)
+	CertificateList      map[string]emissary.DeviceCertificate
+	CertificateListMutex sync.RWMutex
 }
 
 var CertificateAuthority *CA
@@ -325,16 +326,14 @@ func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x5
 	return nil
 }
 
-var revokedCertsMutex sync.RWMutex
-
 // RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
 func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
-	revokedCertsMutex.Lock()
-	defer revokedCertsMutex.Unlock()
+	c.CertificateListMutex.Lock()
 	cert, ok := c.CertificateList[shaCert]
 	if !ok {
 		slog.Error("Unable to revoke certificate as it doesn't exist in the certificate list", shaCert)
 	}
+	c.CertificateListMutex.Unlock()
 	certCopy := cert
 	certCopy.Revoked = 1
 	c.CertificateList[shaCert] = certCopy
@@ -342,8 +341,8 @@ func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
 
 // RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
 func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
-	revokedCertsMutex.Lock()
-	defer revokedCertsMutex.Unlock()
+	c.CertificateListMutex.Lock()
+	defer c.CertificateListMutex.Unlock()
 	cert, ok := c.CertificateList[shaCert]
 	if !ok {
 		slog.Error("Unable to unrevoke certificate as it doesn't exist in the certificate list", shaCert)
