@@ -91,17 +91,17 @@ func (d *Drawbridge) handleClientAuthorizationRequest(w http.ResponseWriter, req
 // as well as provisioning mTLS certificates for them.
 // Proxying requests for TCP and UDP traffic is handled by the reverse proxy.
 func (d *Drawbridge) SetUpEmissaryAPI(hostAndPort string) {
-	r := http.NewServeMux()
-	r.HandleFunc("/emissary/v1/auth", d.handleClientAuthorizationRequest)
-	server := http.Server{
-		TLSConfig: d.CA.ServerTLSConfig,
-		Addr:      hostAndPort,
-		Handler:   r,
-	}
-	slog.Info(fmt.Sprintf("Starting Emissary API server on http://%s", server.Addr))
+	// r := http.NewServeMux()
+	// r.HandleFunc("/emissary/v1/auth", d.handleClientAuthorizationRequest)
+	// server := http.Server{
+	// 	TLSConfig: d.CA.ServerTLSConfig,
+	// 	Addr:      hostAndPort,
+	// 	Handler:   r,
+	// }
+	// slog.Info(fmt.Sprintf("Starting Emissary API server on http://%s", server.Addr))
 
 	// We pass "" into listen and serve since we have already configured cert and keyfile for server.
-	slog.Error("Error starting Emissary API server: %s", server.ListenAndServeTLS("", ""))
+	// slog.Error("Error starting Emissary API server: %s", server.ListenAndServeTLS("", ""))
 }
 
 func (d *Drawbridge) SetUpCAAndDependentServices(protectedServices []services.ProtectedService) {
@@ -260,7 +260,9 @@ func (d *Drawbridge) StopRunningProtectedService(id int64) {
 // VerifyPeerCertificateWithRevocationCheck is a custom VerifyPeerCertificate callback
 // that checks if the peer's certificate is in the revoked certificates list
 func (d *Drawbridge) VerifyPeerCertificateWithRevocationCheck(cert string) error {
+	d.CA.CertificateListMutex.RLock()
 	deviceUUID := d.CA.CertificateList[cert]
+	d.CA.CertificateListMutex.RUnlock()
 	if deviceUUID.Revoked == 1 {
 		return errors.New("certificate is revoked")
 	}
