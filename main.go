@@ -91,6 +91,7 @@ func main() {
 		ProtectedServices: make(map[int64]services.RunningProtectedService, 0),
 		DB:                db,
 		ListeningPort:     flagger.FLAGS.DrawbridgePort,
+		OutboundServices:  make(map[int64]*services.ProtectedService, 0),
 	}
 
 	// Onboarding configuration has been complete and we can load all existing config files and start servers.
