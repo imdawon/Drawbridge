@@ -99,71 +99,64 @@ func (d *Drawbridge) handleEmissaryOutboundRegistration(conn net.Conn, serviceNa
 }
 
 func (d *Drawbridge) handleEmissaryOutboundProtectedServiceConnection(emissaryClient net.Conn, serviceName string) {
+	defer emissaryClient.Close()
+
 	d.OutboundMutex.RLock()
 	outboundService, exists := d.OutboundServices[999]
 	d.OutboundMutex.RUnlock()
-
 	if !exists {
-		slog.Error("Requested service not found", serviceName)
-		emissaryClient.Close()
+		slog.Error("Requested service not found", "serviceName", serviceName)
 		return
 	}
 
-	slog.Info("Sending NEW_CONNECTION to Emissary Outbound")
-	_, err := outboundService.Conn.Write([]byte("NEW_CONNECTION"))
-	if err != nil {
-		slog.Error("Failed to send NEW_CONNECTION", err)
-		emissaryClient.Close()
-		return
-	}
+	slog.Info("Starting to handle connections", "serviceName", serviceName)
 
-	// Set a shorter timeout for the initial handshake
-	outboundService.Conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-	buf := make([]byte, 1024)
-	n, err := outboundService.Conn.Read(buf)
-	if err != nil {
-		slog.Error("Failed to read from outbound service", err)
-		emissaryClient.Close()
-		return
-	}
-
-	// Reset the deadline after the initial handshake
-	outboundService.Conn.SetReadDeadline(time.Time{})
-
-	response := string(buf[:n])
-	slog.Info("Received response from Emissary Outbound", response)
-
-	if response != "LOCAL_CONN_ESTABLISHED" {
-		slog.Error("Unexpected response from outbound service", response)
-		// emissaryClient.Close()
-		// return
-	}
-
-	slog.Info("Starting to proxy data")
-	go debugProxy(emissaryClient, outboundService.Conn, "client -> outbound")
-	debugProxy(outboundService.Conn, emissaryClient, "outbound -> client")
-	slog.Info("Finished proxying data")
-}
-
-func debugProxy(src, dst net.Conn, direction string) {
-	buf := make([]byte, 1024)
+	buffer := make([]byte, 4096)
 	for {
-		n, err := src.Read(buf)
-		if n > 0 {
-			slog.Debug(fmt.Sprintf("Proxying data %s", direction), "bytes", n, "data", string(buf[:n]))
-			_, err := dst.Write(buf[:n])
-			if err != nil {
-				slog.Error("Error writing data", err)
-				return
-			}
-		}
+		// Read the request
+		n, err := emissaryClient.Read(buffer)
 		if err != nil {
 			if err != io.EOF {
-				slog.Error("Error reading data", err)
+				slog.Error("Error reading from emissary client", "error", err)
 			}
 			return
 		}
+
+		// Process the request
+		slog.Info("Received request", "size", n)
+
+		// Send to outbound service
+		_, err = outboundService.Conn.Write(buffer[:n])
+		if err != nil {
+			slog.Error("Error writing to outbound service", "error", err)
+			return
+		}
+
+		// Read the response
+		responseBuffer := make([]byte, 4096)
+		var responseData []byte
+		for {
+			n, err := outboundService.Conn.Read(responseBuffer)
+			if err != nil {
+				if err != io.EOF {
+					slog.Error("Error reading from outbound service", "error", err)
+				}
+				break
+			}
+			responseData = append(responseData, responseBuffer[:n]...)
+			if n < len(responseBuffer) {
+				break
+			}
+		}
+
+		// Send response back to emissary client
+		_, err = emissaryClient.Write(responseData)
+		if err != nil {
+			slog.Error("Error writing response to emissary client", "error", err)
+			return
+		}
+
+		slog.Info("Sent response", "size", len(responseData))
 	}
 }
 
