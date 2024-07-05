@@ -16,7 +16,9 @@
             "--api",
             "6969",
             "--env",
-            "development"
+            "development",
+            "--nogui",
+            ""
           ],
           "env": {
             "CGO_ENABLED": "1",

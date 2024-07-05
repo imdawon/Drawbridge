@@ -6,6 +6,7 @@ type CommandLineArgs struct {
 	BackendAPIHostAndPort  string
 	SqliteFilename         string
 	Env                    string
+	NoGUI                  string
 }
 
 var FLAGS *CommandLineArgs

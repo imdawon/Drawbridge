@@ -49,6 +49,12 @@ func main() {
 		"production",
 		"the environment that Drawbridge is running in ('production', 'development'). development mode increases logging verbosity.",
 	)
+	flag.StringVar(
+		&flagger.FLAGS.NoGUI,
+		"nogui",
+		"",
+		"if passed, the Drawbridge Dashboard will not automatically open in the default browser",
+	)
 	flag.Parse()
 
 	// Show debugger messages in development mode.
