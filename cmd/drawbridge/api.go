@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -369,7 +370,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 		// Handle new connection in a new go routine.
 		// The loop then returns to accepting, so that
 		// multiple connections may be served concurrently.
-		go func(clientConn net.Conn) {
+		go func(emissaryConn net.Conn) {
 			// Read incoming data
 			buf := make([]byte, 256)
 			n, err := conn.Read(buf)
@@ -395,7 +396,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				slog.Error("Emissary Event", slog.Any("Error", err))
 			}
 			// Retrieve the client certificate from the connection by casting the connection as a tls.Conn.
-			clientCert := clientConn.(*tls.Conn).ConnectionState().PeerCertificates[0]
+			clientCert := emissaryConn.(*tls.Conn).ConnectionState().PeerCertificates[0]
 			deviceUUID := clientCert.Subject.SerialNumber
 			event := emissary.Event{
 				ID:             eventUUID,
@@ -426,48 +427,68 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 					slog.Error("PS_CONN Handler", slog.Any("Error converting first byte of emissary request service id to int", err))
 				}
 				requestedServiceAddress, tunnelType := d.getProtectedServiceAddressById(emissaryRequestedServiceIdNum)
+				// For Emissary OB (Outbound) connects, Drawbridge will actually connect to an Emissary client which is exposing a
+				// locally accessible network service.
 				if tunnelType == "OB" {
 					slog.Debug("Outbound Protected Service Detected - handling connection...")
-					d.handleEmissaryOutboundProtectedServiceConnection(clientConn, requestedServiceAddress)
+					d.handleEmissaryOutboundProtectedServiceConnection(emissaryConn, requestedServiceAddress)
 					break
 				}
 
 				// Proxy traffic to the actual service the Emissary client is trying to connect to.
 				var dialer net.Dialer
 				var protectedServiceConn net.Conn
-				const maxRetries = 20
-				retries := 0
-				for {
+				const maxRetries = 5
+				const baseDelay = 500 * time.Millisecond
+				const maxDelay = 16 * time.Second
+
+				for retries := 0; retries < maxRetries; retries++ {
 					protectedServiceConn, err = establishConnection(dialer, requestedServiceAddress)
 					if err == nil {
 						// Connection established successfully, handle it
 						break
 					}
 
-					retries++
-					if retries >= maxRetries {
-						// Maximum retries reached, handle the error
-						slog.Error("Failed to establish connection after", maxRetries, "retries")
-						return
+					// Calculate delay with exponential backoff
+					delay := time.Duration(math.Pow(2, float64(retries))) * baseDelay
+					if delay > maxDelay {
+						delay = maxDelay
 					}
 
-					// Wait for a short duration before retrying
-					slog.Error("Failed to establish connection to Protected Service. Retrying in 500ms...")
-					time.Sleep(500 * time.Millisecond)
+					// Add jitter
+					jitterMax := big.NewInt(int64(float64(delay) * 0.1))
+					jitterInt, _ := rand.Int(rand.Reader, jitterMax)
+					jitter := time.Duration(jitterInt.Int64())
+					delay += jitter
+
+					slog.Error("Failed to establish connection to Protected Service. Retrying...",
+						"error", err,
+						"retryCount", retries+1,
+						"nextRetryIn", delay)
+
+					time.Sleep(delay)
 				}
 
+				if err != nil {
+					slog.Error("Failed to establish connection after max retries",
+						"maxRetries", maxRetries,
+						"error", err)
+					return
+				}
+
+				// Connection established successfully, continue with handling...
 				// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
 				// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
 				if err != nil {
 					slog.Error("Failed to tcp dial to actual target service", err)
 				}
 
-				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s", clientConn.RemoteAddr()))
+				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s", emissaryConn.RemoteAddr()))
 				// Copy data back and from client and server.
-				go io.Copy(protectedServiceConn, clientConn)
-				io.Copy(clientConn, protectedServiceConn)
+				go io.Copy(protectedServiceConn, emissaryConn)
+				io.Copy(emissaryConn, protectedServiceConn)
 				// Shut down the connection.
-				clientConn.Close()
+				emissaryConn.Close()
 			case "PS_LIST":
 				// On a new connection, write available services to TCP connection so Emissary can know which
 				// Protected Services are available
@@ -484,7 +505,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				// to properly read the string from the socket without blocking.
 				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s\n", serviceList)
 				slog.Debug(fmt.Sprintf("PS_LIST values: %s\n", serviceConnectCommand))
-				clientConn.Write([]byte(serviceConnectCommand))
+				emissaryConn.Write([]byte(serviceConnectCommand))
 			default:
 			}
 		}(conn)
