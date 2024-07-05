@@ -321,7 +321,6 @@ func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x5
 	}
 
 	// Additional certificate verification checks can be added here
-	slog.Debug("peer cert is VALID")
 
 	return nil
 }
