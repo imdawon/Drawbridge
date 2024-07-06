@@ -115,10 +115,11 @@ func (d *Drawbridge) handleEmissaryOutboundProtectedServiceConnection(emissaryCl
 	if !exists {
 		slog.Error("Requested service not found", "serviceName", serviceName)
 		return
+	} else {
+		slog.Debug("Proxying emissary outbound traffic...\n")
 	}
 
-	go io.Copy(outboundService.Conn, emissaryClient)
-	io.Copy(emissaryClient, outboundService.Conn)
+	proxyData(outboundService.Conn, emissaryClient)
 
 }
 
@@ -306,6 +307,34 @@ func (d *Drawbridge) VerifyPeerCertificateWithRevocationCheck(cert string) error
 	return nil
 }
 
+func proxyData(dst net.Conn, src net.Conn) {
+	defer dst.Close()
+	defer src.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(dst, src)
+		if err != nil {
+			slog.Error("Failed to copy src to dst", "error", err)
+		}
+		dst.Close()
+
+	}()
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(src, dst)
+		if err != nil {
+			slog.Error("Failed to copy dst to src", "error", err)
+		}
+		src.Close()
+	}()
+
+	wg.Wait()
+}
+
 // This is the service the Emissary client connects to when it wants to access a Protected Service.
 // It needs to take the Emissary connection and route it to the proper Protected Service.
 func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
@@ -446,8 +475,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 
 				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s", emissaryConn.RemoteAddr()))
 				// Copy data back and from client and server.
-				go io.Copy(protectedServiceConn, emissaryConn)
-				io.Copy(emissaryConn, protectedServiceConn)
+				proxyData(protectedServiceConn, emissaryConn)
 				// Shut down the connection.
 				emissaryConn.Close()
 			case "PS_LIST":
@@ -506,6 +534,8 @@ func (d *Drawbridge) getProtectedServiceAddressById(protectedServiceId int) (str
 			return fmt.Sprintf("%s:%d", protectedService.Service.Host, protectedService.Service.Port), "OB"
 		}
 	}
+
+	slog.Error("Unable to find service id mapping for id", protectedServiceId)
 
 	return "", ""
 }
