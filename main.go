@@ -49,6 +49,12 @@ func main() {
 		"production",
 		"the environment that Drawbridge is running in ('production', 'development'). development mode increases logging verbosity.",
 	)
+	flag.StringVar(
+		&flagger.FLAGS.NoGUI,
+		"nogui",
+		"",
+		"if passed, the Drawbridge Dashboard will not automatically open in the default browser",
+	)
 	flag.Parse()
 
 	// Show debugger messages in development mode.
@@ -91,6 +97,7 @@ func main() {
 		ProtectedServices: make(map[int64]services.RunningProtectedService, 0),
 		DB:                db,
 		ListeningPort:     flagger.FLAGS.DrawbridgePort,
+		OutboundServices:  make(map[int64]*services.ProtectedService, 0),
 	}
 
 	// Onboarding configuration has been complete and we can load all existing config files and start servers.
