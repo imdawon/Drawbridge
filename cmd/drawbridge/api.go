@@ -49,8 +49,9 @@ type Drawbridge struct {
 	DB                *persistence.SQLiteRepository
 	ListeningAddress  string
 	ListeningPort     uint
-	OutboundServices  map[int64]*services.ProtectedService
-	OutboundMutex     sync.RWMutex
+	// Contains persistent connections to Emissary Outbound proxy clients, which can expose a service available to it as a Protected Service in Drawbridge.
+	OutboundServices map[int64]*services.ProtectedService
+	OutboundMutex    sync.RWMutex
 }
 
 type EmissaryConfig struct {
@@ -99,6 +100,12 @@ func (d *Drawbridge) handleEmissaryOutboundRegistration(conn net.Conn, serviceNa
 	slog.Info("Registered outbound service", serviceName)
 }
 
+// If a Protected Service is being tunneled by an Emissary Outbound client, we have to handle the connection differently than a normal Drawbridge -> Protected Service connection.
+// An Emissary Outbound client will send Drawbridge a OB_CR8T string followed by the name of the Protected Service e.g OB_CR8T MyMinecraftServer.
+// Once written to Drawbridge, the connection between the Emissary Outbound client and Drawbridge will remain open and Drawbridge will store it in the
+// d.OutboundServices map.
+// When a regular Emissary client requests to access an Emissary Outbound Protected Service, Drawbridge will get the connection from the OutboundServices map
+// mentioned earlier and write all the data the Emissary client sends to the Emissary Outbound Protected service, and vice versa.
 func (d *Drawbridge) handleEmissaryOutboundProtectedServiceConnection(emissaryClient net.Conn, serviceName string) {
 	defer emissaryClient.Close()
 
@@ -110,55 +117,9 @@ func (d *Drawbridge) handleEmissaryOutboundProtectedServiceConnection(emissaryCl
 		return
 	}
 
-	slog.Info("Starting to handle connections", "serviceName", serviceName)
+	go io.Copy(outboundService.Conn, emissaryClient)
+	io.Copy(emissaryClient, outboundService.Conn)
 
-	buffer := make([]byte, 4096)
-	for {
-		// Read the request
-		n, err := emissaryClient.Read(buffer)
-		if err != nil {
-			if err != io.EOF {
-				slog.Error("Error reading from emissary client", "error", err)
-			}
-			return
-		}
-
-		// Process the request
-		slog.Info("Received request", "size", n)
-
-		// Send to outbound service
-		_, err = outboundService.Conn.Write(buffer[:n])
-		if err != nil {
-			slog.Error("Error writing to outbound service", "error", err)
-			return
-		}
-
-		// Read the response
-		responseBuffer := make([]byte, 4096)
-		var responseData []byte
-		for {
-			n, err := outboundService.Conn.Read(responseBuffer)
-			if err != nil {
-				if err != io.EOF {
-					slog.Error("Error reading from outbound service", "error", err)
-				}
-				break
-			}
-			responseData = append(responseData, responseBuffer[:n]...)
-			if n < len(responseBuffer) {
-				break
-			}
-		}
-
-		// Send response back to emissary client
-		_, err = emissaryClient.Write(responseData)
-		if err != nil {
-			slog.Error("Error writing response to emissary client", "error", err)
-			return
-		}
-
-		slog.Info("Sent response", "size", len(responseData))
-	}
 }
 
 // Set up an mTLS-protected API to serve Emissary client requests.
