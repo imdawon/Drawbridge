@@ -9,7 +9,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"dhens/drawbridge/cmd/drawbridge/emissary"
-	"dhens/drawbridge/cmd/drawbridge/emissary/authorization"
 	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"dhens/drawbridge/cmd/drawbridge/services"
 	flagger "dhens/drawbridge/cmd/flags"
@@ -21,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -49,41 +49,78 @@ type Drawbridge struct {
 	DB                *persistence.SQLiteRepository
 	ListeningAddress  string
 	ListeningPort     uint
+	// Contains persistent connections to Emissary Outbound proxy clients, which can expose a service available to it as a Protected Service in Drawbridge.
+	OutboundServices map[int64]*services.ProtectedService
+	OutboundMutex    sync.RWMutex
 }
 
 type EmissaryConfig struct {
 	Platform string `schema:"emissary-platform"`
 }
 
+// Commented out until we decide to develop device attestation requirements.
+//
 // When a request comes to our Emissary client api, this function verifies that the body matches the
 // Drawbridge Authorization Policy.
 // If authorized by passing the policy requirements, we will grant the Emissary client
 // an mTLS key to be used by the Emissary client to access an http resource.
 // If unauthorized, we send the Emissary client a 401.
-func (d *Drawbridge) handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) {
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		slog.Error("error reading client auth request: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "server error!")
-	}
+// func (d *Drawbridge) handleClientAuthorizationRequest(w http.ResponseWriter, req *http.Request) {
+// body, err := io.ReadAll(req.Body)
+// if err != nil {
+// 	slog.Error("error reading client auth request: %s", err)
+// 	w.WriteHeader(http.StatusInternalServerError)
+// 	fmt.Fprintf(w, "server error!")
+// }
 
-	clientAuth := authorization.EmissaryRequest{}
-	err = json.Unmarshal(body, &clientAuth)
-	if err != nil {
-		slog.Error("error unmarshalling client auth request: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "server error!")
-	}
+// clientAuth := authorization.EmissaryRequest{}
+// err = json.Unmarshal(body, &clientAuth)
+// if err != nil {
+// 	slog.Error("error unmarshalling client auth request: %s", err)
+// 	w.WriteHeader(http.StatusInternalServerError)
+// 	fmt.Fprintf(w, "server error!")
+// }
 
-	clientIsAuthorized := authorization.TestPolicy.ClientIsAuthorized(clientAuth)
-	if clientIsAuthorized {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "client auth success!")
+// clientIsAuthorized := authorization.TestPolicy.ClientIsAuthorized(clientAuth)
+// if clientIsAuthorized {
+// 	w.WriteHeader(http.StatusOK)
+// 	fmt.Fprintf(w, "client auth success!")
+// } else {
+// 	w.WriteHeader(http.StatusUnauthorized)
+// 	fmt.Fprintf(w, "client auth failure (unauthorized)!")
+// }
+// }
+
+func (d *Drawbridge) handleEmissaryOutboundRegistration(conn net.Conn, serviceName string) {
+	d.OutboundMutex.Lock()
+	d.OutboundServices[999] = &services.ProtectedService{ID: 999, Name: serviceName, Conn: conn}
+	d.OutboundMutex.Unlock()
+
+	conn.Write([]byte("ACK"))
+	slog.Info("Registered outbound service", serviceName)
+}
+
+// If a Protected Service is being tunneled by an Emissary Outbound client, we have to handle the connection differently than a normal Drawbridge -> Protected Service connection.
+// An Emissary Outbound client will send Drawbridge a OB_CR8T string followed by the name of the Protected Service e.g OB_CR8T MyMinecraftServer.
+// Once written to Drawbridge, the connection between the Emissary Outbound client and Drawbridge will remain open and Drawbridge will store it in the
+// d.OutboundServices map.
+// When a regular Emissary client requests to access an Emissary Outbound Protected Service, Drawbridge will get the connection from the OutboundServices map
+// mentioned earlier and write all the data the Emissary client sends to the Emissary Outbound Protected service, and vice versa.
+func (d *Drawbridge) handleEmissaryOutboundProtectedServiceConnection(emissaryClient net.Conn, serviceName string) {
+	defer emissaryClient.Close()
+
+	d.OutboundMutex.RLock()
+	outboundService, exists := d.OutboundServices[999]
+	d.OutboundMutex.RUnlock()
+	if !exists {
+		slog.Error("Requested service not found", "serviceName", serviceName)
+		return
 	} else {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "client auth failure (unauthorized)!")
+		slog.Debug("Proxying emissary outbound traffic...\n")
 	}
+
+	proxyData(outboundService.Conn, emissaryClient)
+
 }
 
 // Set up an mTLS-protected API to serve Emissary client requests.
@@ -270,6 +307,34 @@ func (d *Drawbridge) VerifyPeerCertificateWithRevocationCheck(cert string) error
 	return nil
 }
 
+func proxyData(dst net.Conn, src net.Conn) {
+	defer dst.Close()
+	defer src.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(dst, src)
+		if err != nil {
+			slog.Error("Failed to copy src to dst", "error", err)
+		}
+		dst.Close()
+
+	}()
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(src, dst)
+		if err != nil {
+			slog.Error("Failed to copy dst to src", "error", err)
+		}
+		src.Close()
+	}()
+
+	wg.Wait()
+}
+
 // This is the service the Emissary client connects to when it wants to access a Protected Service.
 // It needs to take the Emissary connection and route it to the proper Protected Service.
 func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
@@ -295,10 +360,10 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 		// Handle new connection in a new go routine.
 		// The loop then returns to accepting, so that
 		// multiple connections may be served concurrently.
-		go func(clientConn net.Conn) {
+		go func(emissaryConn net.Conn) {
 			// Read incoming data
 			buf := make([]byte, 256)
-			_, err := conn.Read(buf)
+			n, err := conn.Read(buf)
 			if err != nil {
 				slog.Error("Protected Service", slog.Any("Connection Read Error: %w", err))
 				return
@@ -308,7 +373,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			// Print the incoming data - for debugging
 			slog.Info("Emissary Connection", slog.Any("Message Received", buf))
 
-			emissaryRequestPayload := string(buf[:])
+			emissaryRequestPayload := string(buf[:n])
 			emissaryRequestType := emissaryRequestPayload[:7]
 			emissaryRequestedServiceId := ""
 			if emissaryRequestType != "PS_LIST" {
@@ -321,7 +386,7 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				slog.Error("Emissary Event", slog.Any("Error", err))
 			}
 			// Retrieve the client certificate from the connection by casting the connection as a tls.Conn.
-			clientCert := clientConn.(*tls.Conn).ConnectionState().PeerCertificates[0]
+			clientCert := emissaryConn.(*tls.Conn).ConnectionState().PeerCertificates[0]
 			deviceUUID := clientCert.Subject.SerialNumber
 			event := emissary.Event{
 				ID:             eventUUID,
@@ -341,6 +406,9 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 			}
 
 			switch emissaryRequestType {
+			case "OB_CR8T":
+				slog.Debug("Create Outbound Protected Service Request - handling...")
+				d.handleEmissaryOutboundRegistration(conn, emissaryRequestPayload[18:])
 			case "PS_CONN":
 				// May be used later after we standardize how and when to read the tcp connection into the buf above.
 				// d.getRequestProtectedServiceName(clientConn)
@@ -348,44 +416,68 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 				if err != nil {
 					slog.Error("PS_CONN Handler", slog.Any("Error converting first byte of emissary request service id to int", err))
 				}
-				requestedServiceAddress := d.getProtectedServiceAddressById(emissaryRequestedServiceIdNum)
+				requestedServiceAddress, tunnelType := d.getProtectedServiceAddressById(emissaryRequestedServiceIdNum)
+				// For Emissary OB (Outbound) connects, Drawbridge will actually connect to an Emissary client which is exposing a
+				// locally accessible network service.
+				if tunnelType == "OB" {
+					slog.Debug("Outbound Protected Service Detected - handling connection...")
+					d.handleEmissaryOutboundProtectedServiceConnection(emissaryConn, requestedServiceAddress)
+					break
+				}
 
 				// Proxy traffic to the actual service the Emissary client is trying to connect to.
 				var dialer net.Dialer
-				var resourceConn net.Conn
-				const maxRetries = 20
-				retries := 0
-				for {
-					resourceConn, err = establishConnection(dialer, requestedServiceAddress)
+				var protectedServiceConn net.Conn
+				const maxRetries = 5
+				const baseDelay = 500 * time.Millisecond
+				const maxDelay = 16 * time.Second
+
+				for retries := 0; retries < maxRetries; retries++ {
+					protectedServiceConn, err = establishConnection(dialer, requestedServiceAddress)
 					if err == nil {
 						// Connection established successfully, handle it
 						break
 					}
 
-					retries++
-					if retries >= maxRetries {
-						// Maximum retries reached, handle the error
-						slog.Error("Failed to establish connection after", maxRetries, "retries")
-						return
+					// Calculate delay with exponential backoff
+					delay := time.Duration(math.Pow(2, float64(retries))) * baseDelay
+					if delay > maxDelay {
+						delay = maxDelay
 					}
 
-					// Wait for a short duration before retrying
-					slog.Error("Failed to establish connection to Protected Service. Retrying in 500ms...")
-					time.Sleep(500 * time.Millisecond)
+					// Add jitter
+					jitterMax := big.NewInt(int64(float64(delay) * 0.1))
+					jitterInt, _ := rand.Int(rand.Reader, jitterMax)
+					jitter := time.Duration(jitterInt.Int64())
+					delay += jitter
+
+					slog.Error("Failed to establish connection to Protected Service. Retrying...",
+						"error", err,
+						"retryCount", retries+1,
+						"nextRetryIn", delay)
+
+					time.Sleep(delay)
 				}
 
+				if err != nil {
+					slog.Error("Failed to establish connection after max retries",
+						"maxRetries", maxRetries,
+						"error", err)
+					return
+				}
+
+				// Connection established successfully, continue with handling...
 				// This can happen if the Drawbridge admin deletes a Protected Service while it is running.
 				// The net.Listener will be closed and any remaining Accept operations are blocked and return errors.
 				if err != nil {
 					slog.Error("Failed to tcp dial to actual target service", err)
 				}
 
-				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s", clientConn.RemoteAddr()))
+				slog.Debug(fmt.Sprintf("TCP Accept from Emissary client: %s", emissaryConn.RemoteAddr()))
 				// Copy data back and from client and server.
-				go io.Copy(resourceConn, clientConn)
-				io.Copy(clientConn, resourceConn)
+				proxyData(protectedServiceConn, emissaryConn)
 				// Shut down the connection.
-				clientConn.Close()
+				emissaryConn.Close()
 			case "PS_LIST":
 				// On a new connection, write available services to TCP connection so Emissary can know which
 				// Protected Services are available
@@ -394,11 +486,15 @@ func (d *Drawbridge) SetUpProtectedServiceTunnel() error {
 					// We pad the service id with zeros as we want a fixed-width id for easy parsing. This will allow support for up to 1000 Protected Services.
 					serviceList += fmt.Sprintf("%s%s,", utils.PadWithZeros(int(value.Service.ID)), value.Service.Name)
 				}
+				for _, value := range d.OutboundServices {
+					// We pad the service id with zeros as we want a fixed-width id for easy parsing. This will allow support for up to 1000 Protected Services.
+					serviceList += fmt.Sprintf("%s%s,", utils.PadWithZeros(int(value.ID)), value.Name)
+				}
 				// The newline character is important for other platforms, such as Android,
 				// to properly read the string from the socket without blocking.
 				serviceConnectCommand := fmt.Sprintf("PS_LIST: %s\n", serviceList)
 				slog.Debug(fmt.Sprintf("PS_LIST values: %s\n", serviceConnectCommand))
-				clientConn.Write([]byte(serviceConnectCommand))
+				emissaryConn.Write([]byte(serviceConnectCommand))
 			default:
 			}
 		}(conn)
@@ -423,14 +519,25 @@ func (d *Drawbridge) getRequestProtectedServiceName(clientConn net.Conn) (string
 	return string(bytes[:]), nil
 }
 
-func (d *Drawbridge) getProtectedServiceAddressById(protectedServiceId int) string {
+// Returns the service key (id) and the service type "PS" for a regular Protected Service
+// and "OB" for an Emissary Outbound Protected Service.
+func (d *Drawbridge) getProtectedServiceAddressById(protectedServiceId int) (string, string) {
 	for _, service := range d.ProtectedServices {
 		if service.Service.ID == int64(protectedServiceId) {
 			protectedService := d.ProtectedServices[service.Service.ID]
-			return fmt.Sprintf("%s:%d", protectedService.Service.Host, protectedService.Service.Port)
+			return fmt.Sprintf("%s:%d", protectedService.Service.Host, protectedService.Service.Port), "PS"
 		}
 	}
-	return ""
+	for _, outboundService := range d.OutboundServices {
+		if outboundService.ID == int64(protectedServiceId) {
+			protectedService := d.ProtectedServices[outboundService.ID]
+			return fmt.Sprintf("%s:%d", protectedService.Service.Host, protectedService.Service.Port), "OB"
+		}
+	}
+
+	slog.Error("Unable to find service id mapping for id", protectedServiceId)
+
+	return "", ""
 }
 
 type GitHubLatestReleaseBody struct {

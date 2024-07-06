@@ -40,14 +40,16 @@ type Controller struct {
 func (f *Controller) SetUp(hostAndPort string) error {
 	slog.Info(fmt.Sprintf("Starting frontend api service on http://%s. Launching in default web browser...", hostAndPort))
 
-	// Launch the Drawbridge Dashboard in the default browser.
-	switch runtime.GOOS {
-	case "windows":
-		exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:3000").Start()
-	case "darwin":
-		exec.Command("open", "http://localhost:3000").Start()
-	default:
-		slog.Info("Launch Drawbridge Dashboard In Browser", slog.Any("platform not supported for opening Drawbridge in default browser:", runtime.GOOS))
+	if &flagger.FLAGS.NoGUI == nil {
+		// Launch the Drawbridge Dashboard in the default browser.
+		switch runtime.GOOS {
+		case "windows":
+			exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:3000").Start()
+		case "darwin":
+			exec.Command("open", "http://localhost:3000").Start()
+		default:
+			slog.Info("Launch Drawbridge Dashboard In Browser", slog.Any("platform not supported for opening Drawbridge in default browser:", runtime.GOOS))
+		}
 	}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
