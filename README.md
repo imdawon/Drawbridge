@@ -33,7 +33,7 @@ Add Emissary to as many of your machines as you want via the Emissary Bundles fe
 
 ## Example Use-Case
 
-#### HTTP & TCP / UDP Protected Services
+#### HTTP & TCP Protected Services
 
 Creating a Protected Service in the Drawbridge dashboard creates a connection between Drawbridge and the service you want to access remotely.
 
