@@ -135,16 +135,20 @@ func ReadFile(pathWithFilename string) *[]byte {
 	execPath, err := os.Executable()
 	if err != nil {
 		slog.Error(err.Error())
+		return nil
 	}
 	execDirPath := path.Dir(execPath)
 	fullFilePath := filepath.Join(execDirPath, pathWithFilename)
 	slog.Debug("File Operation", slog.String("Read File", fullFilePath))
 
 	file, err := os.ReadFile(fullFilePath)
-	if !errors.Is(err, os.ErrNotExist) {
-		return &file
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			slog.Error("Error reading file", slog.String("path", fullFilePath), slog.Any("error", err))
+		}
+		return nil
 	}
-	return nil
+	return &file
 }
 
 // Used when we need to add all listening address ips to the certificate authority and server certificate.
@@ -179,9 +183,12 @@ func GetDeviceIPs() ([]net.IP, error) {
 
 func CopyFile(filePath string, destinationPath string) error {
 	fileBytes := ReadFile(filePath)
-	splitPath := strings.Split(filePath, "/")
-	filePathFolderLevels := len(splitPath)
-	filename := splitPath[filePathFolderLevels-1:][0]
+	if fileBytes == nil {
+		return fmt.Errorf("error reading source file: %s", filePath)
+	}
+	
+	// Use filepath functions instead of manual string splitting for safety
+	filename := filepath.Base(filePath)
 
 	err := SaveFileByte(filename, *fileBytes, destinationPath)
 	if err != nil {
