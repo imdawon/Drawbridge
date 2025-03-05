@@ -73,7 +73,7 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			// Set the appropriate headers for the file download
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, bundledFile.Name))
 			w.Header().Set("Content-Type", "application/zip")
-			w.Header().Set("Content-Length", string(len(*fileContents)))
+			w.Header().Set("Content-Length", fmt.Sprint(len(*fileContents)))
 
 			// Write the file bytes to the HTTP response
 			_, err = w.Write(*fileContents)

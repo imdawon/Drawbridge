@@ -358,7 +358,7 @@ func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
 
 	cert, ok := c.CertificateList[shaCert]
 	if !ok {
-		slog.Error("Unable to revoke certificate as it doesn't exist in the certificate list", shaCert)
+		slog.Error("Unable to revoke certificate as it doesn't exist in the certificate list", slog.String("certHash", shaCert))
 		return
 	}
 	certCopy := cert
@@ -373,7 +373,7 @@ func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
 
 	cert, ok := c.CertificateList[shaCert]
 	if !ok {
-		slog.Error("Unable to unrevoke certificate as it doesn't exist in the certificate list", shaCert)
+		slog.Error("Unable to unrevoke certificate as it doesn't exist in the certificate list", slog.String("certHash", shaCert))
 		return
 	}
 	certCopy := cert
@@ -388,7 +388,10 @@ func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
 func drawbridgeListeningAddressIsLAN(listeningAddress net.IP) bool {
 	_, ten, _ := net.ParseCIDR("10.0.0.0/8")
 	_, oneNineTwo, _ := net.ParseCIDR("192.168.0.0/16")
-	_, oneNineTwoOne, _ := net.ParseCIDR("192.168.1.0/16")
 	_, oneSevenTwo, _ := net.ParseCIDR("172.16.0.0/12")
-	return ten.Contains(listeningAddress) || oneNineTwo.Contains(listeningAddress) || oneSevenTwo.Contains(listeningAddress) || oneNineTwoOne.Contains(listeningAddress)
+	// Check for loopback specifically
+	if listeningAddress.IsLoopback() {
+		return true
+	}
+	return ten.Contains(listeningAddress) || oneNineTwo.Contains(listeningAddress) || oneSevenTwo.Contains(listeningAddress)
 }

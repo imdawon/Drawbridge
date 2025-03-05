@@ -98,7 +98,7 @@ func (d *Drawbridge) handleEmissaryOutboundRegistration(conn net.Conn, serviceNa
 	d.OutboundMutex.Unlock()
 
 	conn.Write([]byte("ACK"))
-	slog.Info("Registered outbound service", serviceName)
+	slog.Info("Registered outbound service", slog.String("service", serviceName))
 }
 
 // If a Protected Service is being tunneled by an Emissary Outbound client, we have to handle the connection differently than a normal Drawbridge -> Protected Service connection.
@@ -536,7 +536,7 @@ func (d *Drawbridge) getProtectedServiceAddressById(protectedServiceId int) (str
 		}
 	}
 
-	slog.Error("Unable to find service id mapping for id", protectedServiceId)
+	slog.Error("Unable to find service id mapping for id", slog.Int("protectedServiceId", protectedServiceId))
 
 	return "", ""
 }
