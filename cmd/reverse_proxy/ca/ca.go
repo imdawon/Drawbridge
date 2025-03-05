@@ -46,8 +46,8 @@ func (c *CA) SetupCertificates() error {
 
 	caCertPath := utils.CreateDrawbridgeFilePath("./ca/ca.crt")
 	caKeyPath := utils.CreateDrawbridgeFilePath("./ca/ca.key")
-	serverCertPath := utils.CreateDrawbridgeFilePath("./ca/ca.crt")
-	serverKeyPath := utils.CreateDrawbridgeFilePath("./ca/ca.key")
+	serverCertPath := utils.CreateDrawbridgeFilePath("./ca/server-cert.crt")
+	serverKeyPath := utils.CreateDrawbridgeFilePath("./ca/server-key.key")
 
 	// Avoid generating new certificates and keys because we already have. Return TLS configs with the existing files.
 	if caCertContents != nil && serverCertExists && serverKeyExists && caPrivKeyContents != nil {
@@ -117,9 +117,15 @@ func (c *CA) SetupCertificates() error {
 	slog.Debug("Drawbridge listening address type", slog.Bool("isLAN", isLAN))
 	// CA Cert, Server Cert, and Server key do not exist yet. We will generate them now, and save them to disk for reuse.
 	// 1. Set up our CA certificate
+	// Generate a random serial number for the certificate
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return fmt.Errorf("failed to generate serial number: %w", err)
+	}
+
 	ca := x509.Certificate{
 		DNSNames:     []string{*listeningAddress, "localhost"},
-		SerialNumber: big.NewInt(2019),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization:  []string{"Drawbridge"},
 			Country:       []string{""},
@@ -202,8 +208,14 @@ func (c *CA) SetupCertificates() error {
 	}
 
 	// 2. Set up our server certificate
+	// Generate a different random serial number for the server cert
+	serverSerialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return fmt.Errorf("failed to generate server serial number: %w", err)
+	}
+
 	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
+		SerialNumber: serverSerialNumber,
 		// TODO: Must be domain name or IP during user dash setup
 		DNSNames: []string{*listeningAddress, "localhost"},
 		Subject: pkix.Name{
@@ -313,10 +325,24 @@ func hashEmissaryCertificate(rawCert []byte) string {
 // Run for every Drawbridge + Emissary handshake to verify the presented cert is not revoked.
 func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 	// Parse the peer certificate
+	if len(rawCerts) == 0 {
+		return fmt.Errorf("no certificates provided")
+	}
+
 	hexHash := hashEmissaryCertificate(rawCerts[0])
+
 	// Check if the certificate hash is in the revocation list
-	if c.CertificateList[hexHash].Revoked == 1 {
-		slog.Debug("peer cert is REVOKED")
+	c.CertificateListMutex.RLock()
+	certInfo, exists := c.CertificateList[hexHash]
+	c.CertificateListMutex.RUnlock()
+
+	if !exists {
+		slog.Debug("unknown certificate presented", slog.String("hash", hexHash))
+		return fmt.Errorf("unknown certificate")
+	}
+
+	if certInfo.Revoked == 1 {
+		slog.Debug("peer cert is REVOKED", slog.String("hash", hexHash))
 		return fmt.Errorf("peer certificate is revoked")
 	}
 
@@ -328,23 +354,27 @@ func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x5
 // RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
 func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
 	c.CertificateListMutex.Lock()
+	defer c.CertificateListMutex.Unlock()
+
 	cert, ok := c.CertificateList[shaCert]
 	if !ok {
 		slog.Error("Unable to revoke certificate as it doesn't exist in the certificate list", shaCert)
+		return
 	}
-	c.CertificateListMutex.Unlock()
 	certCopy := cert
 	certCopy.Revoked = 1
 	c.CertificateList[shaCert] = certCopy
 }
 
-// RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
+// UnRevokeCertInCertificateRevocationList removes a certificate from the revoked certificates list
 func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
 	c.CertificateListMutex.Lock()
 	defer c.CertificateListMutex.Unlock()
+
 	cert, ok := c.CertificateList[shaCert]
 	if !ok {
 		slog.Error("Unable to unrevoke certificate as it doesn't exist in the certificate list", shaCert)
+		return
 	}
 	certCopy := cert
 	certCopy.Revoked = 0
@@ -353,9 +383,12 @@ func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
 
 // If someone is listening on a LAN address, we don't want to listen on all interfaces like we do if someone uses their
 // public WAN address, for example.
+// This is because the user wants to lock down access to Drawbridge from certain interfaces. We don't want to pull the rug out from
+// under them and expose Drawbridge on an internet-facing interface when they otherwise wouldn't expect it to be.
 func drawbridgeListeningAddressIsLAN(listeningAddress net.IP) bool {
 	_, ten, _ := net.ParseCIDR("10.0.0.0/8")
 	_, oneNineTwo, _ := net.ParseCIDR("192.168.0.0/16")
-	_, oneSevenTwo, _ := net.ParseCIDR("192.168.1.0/12")
-	return ten.Contains(listeningAddress) || oneNineTwo.Contains(listeningAddress) || oneSevenTwo.Contains(listeningAddress)
+	_, oneNineTwoOne, _ := net.ParseCIDR("192.168.1.0/16")
+	_, oneSevenTwo, _ := net.ParseCIDR("172.16.0.0/12")
+	return ten.Contains(listeningAddress) || oneNineTwo.Contains(listeningAddress) || oneSevenTwo.Contains(listeningAddress) || oneNineTwoOne.Contains(listeningAddress)
 }

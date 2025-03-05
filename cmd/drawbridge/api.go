@@ -93,6 +93,7 @@ type EmissaryConfig struct {
 
 func (d *Drawbridge) handleEmissaryOutboundRegistration(conn net.Conn, serviceName string) {
 	d.OutboundMutex.Lock()
+	// TODO - don't pin a set ID, integrate it alongside the other Protected Services.
 	d.OutboundServices[999] = &services.ProtectedService{ID: 999, Name: serviceName, Conn: conn}
 	d.OutboundMutex.Unlock()
 
