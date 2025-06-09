@@ -5,7 +5,9 @@
 [Quick Start Guide: Protect your self-hosted servers with Drawbridge in 5 minutes or less](https://github.com/imdawon/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
 
 ## Usage
+
 `./Drawbridge --api 3100 --fapi localhost:3000 --sqlfile drawbridge.db --env production`
+
 ```
 --api <port_number> (default 3100): listening port for the drawbridge mTLS TCP server - emissary connects directly to this e.g 3100.
 --fapi <ip:port> (default localhost:3000): listening host and port for the drawbridge dashboard page e.g 'localhost:3000'. This is useful when you want to access the frontend remotely. This is not recommended as there are no access controls for the Drawbridge dashboard currently. Once exposed remotely, you can add the Drawbridge dashboard itself as a Protected Service, then access the Dashboard via Emissary going forward. Once you confirm you can access the Dashboard via Emissary, we reccomend to unset the --fapi arg so it will only be exposed to authorized Emissary devices.

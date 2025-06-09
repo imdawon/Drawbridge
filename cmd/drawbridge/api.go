@@ -555,8 +555,8 @@ type GitHubLatestReleaseBody struct {
 }
 
 type GitHubLatestAssetsBody struct {
-	Asset string `json:"browser_download_url"`
-	Name  string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+	Name               string `json:"name"`
 }
 
 type BundleFile struct {
@@ -581,10 +581,18 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	}
 
 	// Get assets url
-	releaseResp, err := http.Get("https://api.github.com/repos/imdawon/Emissary-Daemon/releases/latest")
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/imdawon/Emissary-Daemon/releases/latest", nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", "Drawbridge/1.0")
+
+	releaseResp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseResp.Body.Close()
 	releaseBody, err := io.ReadAll(io.LimitReader(releaseResp.Body, 500000))
 	if err != nil {
 		return nil, err
@@ -594,15 +602,22 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	json.Unmarshal(releaseBody, &githubReleaseBody)
 	// Ensure we only allow legit URLs in case the response gets hijacked / modified somehow.
 	// We don't want make a request get whatever arbitrary response url is returned from the GitHub API.
-	if githubReleaseBody.AssetsURL[:62] != "https://api.github.com/repos/imdawon/Emissary-Daemon/releases/" {
+	if !strings.HasPrefix(githubReleaseBody.AssetsURL, "https://api.github.com/repos/imdawon/Emissary-Daemon/releases/") {
 		return nil, fmt.Errorf("unexpected url returned from github 'releases/latest' endpoint. unable to get Emissary client")
 	}
 
 	// Get all asset file metadata for latest release
-	assetsResp, err := http.Get(githubReleaseBody.AssetsURL)
+	assetsReq, err := http.NewRequest("GET", githubReleaseBody.AssetsURL, nil)
 	if err != nil {
 		return nil, err
 	}
+	assetsReq.Header.Set("User-Agent", "Drawbridge/1.0")
+
+	assetsResp, err := client.Do(assetsReq)
+	if err != nil {
+		return nil, err
+	}
+	defer assetsResp.Body.Close()
 	assetsBody, err := io.ReadAll(io.LimitReader(assetsResp.Body, 500000))
 	if err != nil {
 		return nil, err
@@ -620,8 +635,8 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 		if len(emissaryClientURL) > 0 && len(emissaryClientSigURL) > 0 {
 			break
 		}
-		assetURL := v.Asset
-		if v.Asset[:61] != "https://github.com/imdawon/Emissary-Daemon/releases/download/" {
+		assetURL := v.BrowserDownloadURL
+		if !strings.HasPrefix(v.BrowserDownloadURL, "https://github.com/imdawon/Emissary-Daemon/releases/download/") {
 			return nil, fmt.Errorf("unexpected url returned from github 'releases/latest' endpoint. unable to get Emissary client")
 		}
 		// Add all macos asset files since we need the zipped Emissary client and the .sig file.
@@ -637,10 +652,17 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	}
 
 	// Grab the latest Emissary release (macOS, Linux, or Windows) GitHub Releases API
-	emissaryResp, err := http.Get(emissaryClientURL)
+	emissaryReq, err := http.NewRequest("GET", emissaryClientURL, nil)
 	if err != nil {
 		return nil, err
 	}
+	emissaryReq.Header.Set("User-Agent", "Drawbridge/1.0")
+
+	emissaryResp, err := client.Do(emissaryReq)
+	if err != nil {
+		return nil, err
+	}
+	defer emissaryResp.Body.Close()
 	// We don't expect the zipped Emissary Bundle to get larger than 10MB
 	emissaryReleaseBody, err := io.ReadAll(io.LimitReader(emissaryResp.Body, 10000000))
 	if err != nil {
@@ -651,10 +673,17 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	json.Unmarshal(emissaryReleaseBody, &githubEmissaryReleaseBody)
 
 	// Grab the latest Emissary release (macOS, Linux, or Windows) signature file from GitHub Releases API
-	emissarySigResp, err := http.Get(emissaryClientSigURL)
+	emissarySigReq, err := http.NewRequest("GET", emissaryClientSigURL, nil)
 	if err != nil {
 		return nil, err
 	}
+	emissarySigReq.Header.Set("User-Agent", "Drawbridge/1.0")
+
+	emissarySigResp, err := client.Do(emissarySigReq)
+	if err != nil {
+		return nil, err
+	}
+	defer emissarySigResp.Body.Close()
 	emissarySigBody, err := io.ReadAll(io.LimitReader(emissarySigResp.Body, 500))
 	if err != nil {
 		return nil, err

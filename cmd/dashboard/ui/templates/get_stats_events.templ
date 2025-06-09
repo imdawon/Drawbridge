@@ -1,0 +1,28 @@
+package templates
+
+import (
+	"dhens/drawbridge/cmd/drawbridge/emissary"
+)
+
+templ GetStatsEvents(events []emissary.Event) {
+	<div>
+		if len(events) == 0 {
+			<p>No recent events</p>
+		} else {
+			for _, event := range events {
+				<div class="event-row">
+					<div class="event-time">{ event.Timestamp }</div>
+					<div class={templ.KV("event-type", true), templ.KV("connection", event.Type == "connection"), templ.KV("disconnection", event.Type == "disconnection"), templ.KV("revocation", event.Type == "revocation")}>
+						{ event.Type }
+					</div>
+					<div class="event-details">
+						if event.TargetService != "" {
+							<span>{ event.TargetService }</span>
+						}
+						<span>{ event.ConnectionIP }</span>
+					</div>
+				</div>
+			}
+		}
+	</div>
+}

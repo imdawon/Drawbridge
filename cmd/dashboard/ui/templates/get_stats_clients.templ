@@ -1,0 +1,23 @@
+package templates
+
+import (
+	"strconv"
+)
+
+templ GetStatsClients(totalClients int, activeClients int, revokedClients int) {
+	<div>
+		<div class="stats-number">{ strconv.Itoa(totalClients) }</div>
+		<div class="stats-metric">
+			<span class="stats-metric-name">Total Clients</span>
+			<span class="stats-metric-value">{ strconv.Itoa(totalClients) }</span>
+		</div>
+		<div class="stats-metric">
+			<span class="stats-metric-name">Active Clients</span>
+			<span class="stats-metric-value">{ strconv.Itoa(activeClients) }</span>
+		</div>
+		<div class="stats-metric">
+			<span class="stats-metric-name">Revoked Clients</span>
+			<span class="stats-metric-value">{ strconv.Itoa(revokedClients) }</span>
+		</div>
+	</div>
+}

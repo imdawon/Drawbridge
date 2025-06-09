@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="./css/index.css" />
+  <link rel="stylesheet" type="text/css" href="./css/stats.css" />
+  <title>Drawbridge Statistics</title>
+</head>
+
+<body>
+  <div class="container">
+    <div id="sidebar">
+      <ul>
+        <li>
+          <a href="./index.html">Protected Services</a>
+        </li>
+        <li>
+          <a href="./clients.html">Emissary Clients</a>
+        </li>
+        <li>
+          <a href="./stats.html">Statistics</a>
+        </li>
+      </ul>
+    </div>
+    <div id="content">
+      <h1>Drawbridge Statistics</h1>
+      
+      <div id="stats-container">
+        <div class="stats-card" id="client-stats" hx-get="/stats/clients" hx-trigger="load every 10s" hx-swap="innerHTML">
+          <h3>Client Statistics</h3>
+          <div class="loader"></div>
+        </div>
+        
+        <div class="stats-card" id="service-stats" hx-get="/stats/services" hx-trigger="load every 10s" hx-swap="innerHTML">
+          <h3>Service Statistics</h3>
+          <div class="loader"></div>
+        </div>
+
+        <div class="stats-card" id="connection-stats" hx-get="/stats/connections" hx-trigger="load every 10s" hx-swap="innerHTML">
+          <h3>Connection Statistics</h3>
+          <div class="loader"></div>
+        </div>
+
+        <div class="stats-card" id="event-history" hx-get="/stats/events" hx-trigger="load every 10s" hx-swap="innerHTML">
+          <h3>Recent Events</h3>
+          <div class="loader"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+<script src="./htmx.min.js"></script>
+<script src="./_hyperscript.min.js"></script>
+</html>

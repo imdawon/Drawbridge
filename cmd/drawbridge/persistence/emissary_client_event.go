@@ -109,7 +109,7 @@ func (r *SQLiteRepository) GetLatestEventForEachDeviceId(deviceIDs []any) (map[s
 
 func (r *SQLiteRepository) GetLatestEventForDeviceId(deviceID string) (*emissary.Event, error) {
 	if len(deviceID) == 0 {
-		return nil, fmt.Errorf("no deviceIDs supplied to get latest event for each device id")
+		return nil, fmt.Errorf("no deviceIDs supplied to get latest event for one device id")
 	}
 	queryLatestDeviceEventForEachDevice := fmt.Sprintf(queryLatestDeviceEventForEachDevice, "?")
 	rows, err := r.db.Query(queryLatestDeviceEventForEachDevice, deviceID)
