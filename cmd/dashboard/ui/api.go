@@ -7,6 +7,7 @@ import (
 	"imdawon/drawbridge/cmd/analytics"
 	"imdawon/drawbridge/cmd/dashboard/ui/templates"
 	"imdawon/drawbridge/cmd/drawbridge"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
 	"imdawon/drawbridge/cmd/drawbridge/persistence"
 	"imdawon/drawbridge/cmd/drawbridge/services"
 	flagger "imdawon/drawbridge/cmd/flags"
@@ -55,6 +56,9 @@ func (f *Controller) SetUp(hostAndPort string) error {
 	r.Use(middleware.Logger)
 	// Use gzip
 	r.Use(middleware.Compress(5, "gzip"))
+
+	// Register statistics endpoints
+	f.RegisterStatisticsEndpoints(r)
 
 	r.Get("/admin/get/emissary/bundle", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
@@ -264,15 +268,23 @@ func (f *Controller) SetUp(hostAndPort string) error {
 			slog.Error("error getting all emissary clients: %w", err)
 		}
 
-		var deviceIDs []any
-		for _, client := range clients {
-			deviceIDs = append(deviceIDs, client.ID)
+		latestClientEvents := make(map[string]emissary.Event)
+
+		// Only try to get events if we have clients
+		if len(clients) > 0 {
+			var deviceIDs []any
+			for _, client := range clients {
+				deviceIDs = append(deviceIDs, client.ID)
+			}
+
+			events, err := f.DB.GetLatestEventForEachDeviceId(deviceIDs)
+			if err != nil {
+				slog.Error("error getting latest client events: %w", err)
+			} else {
+				latestClientEvents = events
+			}
 		}
 
-		latestClientEvents, err := f.DB.GetLatestEventForEachDeviceId(deviceIDs)
-		if err != nil {
-			slog.Error("error getting latest client events: %w", err)
-		}
 		templates.GetAllEmissaryClients(clients, latestClientEvents).Render(r.Context(), w)
 	})
 

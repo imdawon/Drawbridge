@@ -1,0 +1,35 @@
+package templates
+
+import (
+	"dhens/drawbridge/cmd/drawbridge/services"
+	"strconv"
+)
+
+templ GetStatsServices(services []services.ProtectedService, totalServices int, topService string, topServiceConnections int) {
+	<div>
+		<div class="stats-number">{ strconv.Itoa(totalServices) }</div>
+		<div class="stats-metric">
+			<span class="stats-metric-name">Total Services</span>
+			<span class="stats-metric-value">{ strconv.Itoa(totalServices) }</span>
+		</div>
+		<div class="stats-metric">
+			<span class="stats-metric-name">Most Used Service</span>
+			<span class="stats-metric-value">{ topService }</span>
+		</div>
+		<div class="stats-metric">
+			<span class="stats-metric-name">Connections</span>
+			<span class="stats-metric-value">{ strconv.Itoa(topServiceConnections) }</span>
+		</div>
+		
+		if len(services) > 0 {
+			<div class="bar-chart">
+				for _, service := range services {
+					<div>
+						<div class="bar" style="height: 50px;"></div>
+						<div class="bar-label">{ service.Name }</div>
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
