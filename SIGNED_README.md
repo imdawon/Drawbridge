@@ -7,7 +7,7 @@ The following is the signing key used to sign all official Drawbridge and Emissa
 
 Each GitHub release will contain signed binaries with PGP signature files.
 
-It is recommended that you verify the binaries are properly signed by dhens@github.com (not my real email address).
+It is recommended that you verify the binaries are properly signed by imdawon@github.com (not my real email address).
 
 The signing key fingerprint is D9D5 A89A 036E A6D6 0394 B12A 44A4 D32F A00F 8D39.
 

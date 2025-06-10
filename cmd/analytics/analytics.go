@@ -2,8 +2,8 @@ package analytics
 
 import (
 	"crypto/tls"
-	"dhens/drawbridge/cmd/drawbridge/persistence"
 	"fmt"
+	"imdawon/drawbridge/cmd/drawbridge/persistence"
 	"log/slog"
 	"math/rand"
 	"net/http"

@@ -10,12 +10,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"dhens/drawbridge/cmd/drawbridge/emissary"
-	"dhens/drawbridge/cmd/drawbridge/persistence"
-	"dhens/drawbridge/cmd/utils"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
+	"imdawon/drawbridge/cmd/drawbridge/persistence"
+	"imdawon/drawbridge/cmd/utils"
 	"log"
 	"log/slog"
 	"math/big"
@@ -24,16 +24,38 @@ import (
 	"time"
 )
 
+// Keeps a map using the sha256 key of the PEM certificate block and device UUID + revoked value (0 for false and 1 for true).
+// We use this when a device connects to ensure the device is valid.
+// We add entries to this map in 2 situations:
+// - When a new Emissary bundle is created
+// - On startup we read all certificates from the devices table and load them all into this map.
+type CertificateList map[string]emissary.DeviceCertificate
+
 type CA struct {
-	CertPool             *x509.CertPool
-	ClientTLSConfig      *tls.Config
-	ServerTLSConfig      *tls.Config
-	CertificateAuthority *x509.Certificate
-	PrivateKey           crypto.PrivateKey
-	DB                   *persistence.SQLiteRepository
-	// sha256 key of certificate -> device uuid and revoked value (0 for false| 1 for true)
-	CertificateList      map[string]emissary.DeviceCertificate
-	CertificateListMutex sync.RWMutex
+	CertPool                                 *x509.CertPool
+	ClientTLSConfig                          *tls.Config
+	ServerTLSConfig                          *tls.Config
+	CertificateAuthority                     *x509.Certificate
+	PrivateKey                               crypto.PrivateKey
+	DB                                       *persistence.SQLiteRepository
+	EmissaryDeviceCertificatesWhitelist      CertificateList
+	EmissaryDeviceCertificatesWhitelistMutex sync.RWMutex
+}
+
+// When we create an Emissary device, we save the sha256 hash of the certificate for the device and add it to the certificate whitelist
+func (c *CA) SetEmissaryCertificateToCertificateList(certBytes []byte, emissaryDeviceCertificate emissary.DeviceCertificate) {
+	hexHash := HashEmissaryCertificate(certBytes)
+	c.EmissaryDeviceCertificatesWhitelistMutex.RLock()
+	c.EmissaryDeviceCertificatesWhitelist[hexHash] = emissaryDeviceCertificate
+	c.EmissaryDeviceCertificatesWhitelistMutex.RUnlock()
+}
+
+func (c *CA) GetCertificateFromCertificateList(hexHash string) (emissary.DeviceCertificate, bool) {
+	c.EmissaryDeviceCertificatesWhitelistMutex.RLock()
+	certInfo, exists := c.EmissaryDeviceCertificatesWhitelist[hexHash]
+	c.EmissaryDeviceCertificatesWhitelistMutex.RUnlock()
+	return certInfo, exists
+
 }
 
 var CertificateAuthority *CA
@@ -99,7 +121,7 @@ func (c *CA) SetupCertificates() error {
 		if err != nil {
 			return err
 		}
-		c.CertificateList = emissaryClientCertificates
+		c.EmissaryDeviceCertificatesWhitelist = emissaryClientCertificates
 
 		// Terminate function early as we have all of the cert and key data we need.
 		slog.Info("Loaded TLS Certs & Keys")
@@ -302,21 +324,15 @@ func (c *CA) SetupCertificates() error {
 		Certificates: []tls.Certificate{serverCert},
 	}
 
-	c.CertificateList = make(map[string]emissary.DeviceCertificate, 0)
+	c.EmissaryDeviceCertificatesWhitelist = make(map[string]emissary.DeviceCertificate, 0)
 
 	return nil
 }
 
 // Parse the peer certificate
-func hashEmissaryCertificate(rawCert []byte) string {
-	caPEM := new(bytes.Buffer)
-	pem.Encode(caPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: rawCert,
-	})
-
+func HashEmissaryCertificate(pemCert []byte) string {
 	// Calculate the SHA-256 hash of the peer certificate
-	hash := sha256.Sum256(caPEM.Bytes())
+	hash := sha256.Sum256(pemCert)
 	hexHash := hex.EncodeToString(hash[:])
 	return hexHash
 }
@@ -329,15 +345,21 @@ func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x5
 		return fmt.Errorf("no certificates provided")
 	}
 
-	hexHash := hashEmissaryCertificate(rawCerts[0])
-
+	certBytes := rawCerts[0]
+	// Convert DER to PEM
+	pemCert := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+	// Hash the PEM-encoded bytes
+	hexHash := HashEmissaryCertificate(pemCert)
+	// Verify the hash against the whitelist
 	// Check if the certificate hash is in the revocation list
-	c.CertificateListMutex.RLock()
-	certInfo, exists := c.CertificateList[hexHash]
-	c.CertificateListMutex.RUnlock()
+	certInfo, exists := c.GetCertificateFromCertificateList(hexHash)
 
 	if !exists {
 		slog.Debug("unknown certificate presented", slog.String("hash", hexHash))
+		slog.Debug("hash list: %v", slog.Any("hashes:", c.EmissaryDeviceCertificatesWhitelist))
 		return fmt.Errorf("unknown certificate")
 	}
 
@@ -353,35 +375,35 @@ func (c *CA) verifyEmissaryCertificate(rawCerts [][]byte, verifiedChains [][]*x5
 
 // RevokeCertInCertificateRevocationList adds a certificate to the revoked certificates list
 func (c *CA) RevokeCertInCertificateRevocationList(shaCert string) {
-	c.CertificateListMutex.Lock()
-	defer c.CertificateListMutex.Unlock()
+	c.EmissaryDeviceCertificatesWhitelistMutex.Lock()
+	defer c.EmissaryDeviceCertificatesWhitelistMutex.Unlock()
 
-	cert, ok := c.CertificateList[shaCert]
+	cert, ok := c.GetCertificateFromCertificateList(shaCert)
 	if !ok {
 		slog.Error("Unable to revoke certificate as it doesn't exist in the certificate list", slog.String("certHash", shaCert))
 		return
 	}
 	certCopy := cert
 	certCopy.Revoked = 1
-	c.CertificateList[shaCert] = certCopy
+	c.EmissaryDeviceCertificatesWhitelist[shaCert] = certCopy
 }
 
 // UnRevokeCertInCertificateRevocationList removes a certificate from the revoked certificates list
 func (c *CA) UnRevokeCertInCertificateRevocationList(shaCert string) {
-	c.CertificateListMutex.Lock()
-	defer c.CertificateListMutex.Unlock()
+	c.EmissaryDeviceCertificatesWhitelistMutex.Lock()
+	defer c.EmissaryDeviceCertificatesWhitelistMutex.Unlock()
 
-	cert, ok := c.CertificateList[shaCert]
+	cert, ok := c.EmissaryDeviceCertificatesWhitelist[shaCert]
 	if !ok {
 		slog.Error("Unable to unrevoke certificate as it doesn't exist in the certificate list", slog.String("certHash", shaCert))
 		return
 	}
 	certCopy := cert
 	certCopy.Revoked = 0
-	c.CertificateList[shaCert] = certCopy
+	c.EmissaryDeviceCertificatesWhitelist[shaCert] = certCopy
 }
 
-// If someone is listening on a LAN address, we don't want to listen on all interfaces like we do if someone uses their
+// If a Drawbridge user is listening on a LAN address, we don't want to listen on all interfaces like we do if someone uses their
 // public WAN address, for example.
 // This is because the user wants to lock down access to Drawbridge from certain interfaces. We don't want to pull the rug out from
 // under them and expose Drawbridge on an internet-facing interface when they otherwise wouldn't expect it to be.

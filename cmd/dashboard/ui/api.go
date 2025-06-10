@@ -2,14 +2,14 @@ package ui
 
 import (
 	"crypto/sha256"
-	"dhens/drawbridge/cmd/analytics"
-	"dhens/drawbridge/cmd/dashboard/ui/templates"
-	"dhens/drawbridge/cmd/drawbridge"
-	"dhens/drawbridge/cmd/drawbridge/persistence"
-	"dhens/drawbridge/cmd/drawbridge/services"
-	flagger "dhens/drawbridge/cmd/flags"
 	"encoding/hex"
 	"fmt"
+	"imdawon/drawbridge/cmd/analytics"
+	"imdawon/drawbridge/cmd/dashboard/ui/templates"
+	"imdawon/drawbridge/cmd/drawbridge"
+	"imdawon/drawbridge/cmd/drawbridge/persistence"
+	"imdawon/drawbridge/cmd/drawbridge/services"
+	flagger "imdawon/drawbridge/cmd/flags"
 	"log"
 	"log/slog"
 	"net/http"
@@ -40,7 +40,7 @@ type Controller struct {
 func (f *Controller) SetUp(hostAndPort string) error {
 	slog.Info(fmt.Sprintf("Starting frontend api service on http://%s. Launching in default web browser...", hostAndPort))
 
-	if &flagger.FLAGS.NoGUI == nil {
+	if flagger.FLAGS.NoGUI == "" {
 		// Launch the Drawbridge Dashboard in the default browser.
 		switch runtime.GOOS {
 		case "windows":

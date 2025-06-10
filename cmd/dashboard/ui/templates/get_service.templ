@@ -2,7 +2,7 @@ package templates
 
 import "strconv"
 import "fmt"
-import "dhens/drawbridge/cmd/drawbridge/services"
+import "imdawon/drawbridge/cmd/drawbridge/services"
 
 templ GetService(service *services.ProtectedService) {
     <div id={ fmt.Sprintf("service-%d",service.ID) }>

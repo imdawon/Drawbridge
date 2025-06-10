@@ -2,7 +2,7 @@
 
 ![Drawbridge Logo](./drawbridge_logo.jpg)
 
-[Quick Start Guide: Protect your self-hosted servers with Drawbridge in 5 minutes or less](https://github.com/dhens/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
+[Quick Start Guide: Protect your self-hosted servers with Drawbridge in 5 minutes or less](https://github.com/imdawon/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
 
 ## Usage
 `./Drawbridge --api 3100 --fapi localhost:3000 --sqlfile drawbridge.db --env production`
@@ -25,11 +25,11 @@ Even if there's none of that, it doesn't really feel like you're sticking it to 
 
 Emissary and Drawbridge solve this problem.
 
-Drawbridge is a reverse proxy which only allow machines running [Emissary desktop client](https://github.com/dhens/Emissary-Daemon) to access your self-hosted services.
+Drawbridge is a reverse proxy which only allow machines running [Emissary desktop client](https://github.com/imdawon/Emissary-Daemon) to access your self-hosted services.
 
 Add Emissary to as many of your machines as you want via the Emissary Bundles feature, expose the Drawbridge reverse proxy server port on your router, _instead_ of directly exposong your insecure web application or "movie server", and bam: your service is only accessible from authorized Emissary clients.
 
-[Click here to quickly set up Drawbridge and Emissary](https://github.com/dhens/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
+[Click here to quickly set up Drawbridge and Emissary](https://github.com/imdawon/Drawbridge/wiki/Latest-Quick%E2%80%90Start-Guide-for-Drawbridge-and-Emissary-%E2%80%90-Minecraft-Server)
 
 ## Example Use-Case
 
@@ -54,6 +54,15 @@ To accomplish this, the following needs to be true:
 - Drawbridge and Emissary _only_ need eachother in order to provide all features described in this document.
 - No hacky shenangians or end-user technical knowledge to verify a secure session has been created e.g checking certificate hashes or an Emissary user needing to manually configure their host machine.
 
+  ### Future Features
+  While simplicity of securing self-hosted services is the goal of Drawbridge, the Emissary Bundle strategy is currently the biggest hurdle to usability due to the problem of getting the bundle to the end user.
+
+  There needs to be some sort of identity access management component either via an existing service e.g Sign-In with Google. This requires opening an additional port so the Emissary client can download the Emissary bundle directly from the Drawbridge server.
+
+  The current process of generating an Emissary bundle and: emailing it to the end user / uploading it to a file sharing service, is too cumbersome.
+
+
+
 ## Authentication Process
 
 - A Drawbridge server is set up and configured to be accessible from port 3100 (or any port you desire - can be configured via cli `api` arg) on an internet-facing IP address.
@@ -69,3 +78,4 @@ To accomplish this, the following needs to be true:
   The Drawbridge server will create a Root CA and sign all client mTLS keys.
 
   When using the Emissary Bundle feature in the Drawbridge Dashboard, the zipped Bundle will contain the mTLS keys and certificate needed to connect to Drawbridge. This Emissary certificate can be revoked and unrevoked in the Emissary Clients page in the Dashboard as needed.
+

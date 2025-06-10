@@ -8,16 +8,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"dhens/drawbridge/cmd/drawbridge/emissary"
-	"dhens/drawbridge/cmd/drawbridge/persistence"
-	"dhens/drawbridge/cmd/drawbridge/services"
-	flagger "dhens/drawbridge/cmd/flags"
-	certificates "dhens/drawbridge/cmd/reverse_proxy/ca"
-	"dhens/drawbridge/cmd/utils"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
+	"imdawon/drawbridge/cmd/drawbridge/persistence"
+	"imdawon/drawbridge/cmd/drawbridge/services"
+	flagger "imdawon/drawbridge/cmd/flags"
+	certificates "imdawon/drawbridge/cmd/reverse_proxy/ca"
+	"imdawon/drawbridge/cmd/utils"
 	"io"
 	"log/slog"
 	"math"
@@ -273,7 +273,13 @@ func (d *Drawbridge) CreateEmissaryClientTCPMutualTLSKey(clientId, platform stri
 	certpool.AppendCertsFromPEM(certPEM.Bytes())
 	//  Add Emissary mTLS certificate to list of acceptable client certificates.
 	d.CA.ClientTLSConfig.Certificates = append(d.CA.ClientTLSConfig.Certificates, emissaryCert)
+
 	certificateString := certPEM.String()
+	hashedCert := certificates.HashEmissaryCertificate(certPEM.Bytes())
+	// Add device to certificate list
+	d.CA.SetEmissaryCertificateToCertificateList(certPEM.Bytes(), emissary.DeviceCertificate{Revoked: 0, DeviceID: clientId})
+	slog.Debug("Certificate List", slog.String("Adding hash", hashedCert))
+	slog.Debug("Certificate List", slog.String("plaintext", certPEM.String()))
 
 	return &certificateString, nil
 }
@@ -298,11 +304,14 @@ func (d *Drawbridge) StopRunningProtectedService(id int64) {
 // VerifyPeerCertificateWithRevocationCheck is a custom VerifyPeerCertificate callback
 // that checks if the peer's certificate is in the revoked certificates list
 func (d *Drawbridge) VerifyPeerCertificateWithRevocationCheck(cert string) error {
-	d.CA.CertificateListMutex.RLock()
-	deviceUUID := d.CA.CertificateList[cert]
-	d.CA.CertificateListMutex.RUnlock()
-	if deviceUUID.Revoked == 1 {
-		return errors.New("certificate is revoked")
+	d.CA.EmissaryDeviceCertificatesWhitelistMutex.RLock()
+	deviceCert, exists := d.CA.GetCertificateFromCertificateList(cert)
+	d.CA.EmissaryDeviceCertificatesWhitelistMutex.RUnlock()
+	if !exists {
+		return errors.New("emissary client presented a certificate that does not exist in our system")
+	}
+	if deviceCert.Revoked == 1 {
+		return errors.New("emissary client presented a certificate that is revoked")
 	}
 	// If we reach here, no certificate in the chain is revoked
 	return nil
@@ -572,7 +581,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	}
 
 	// Get assets url
-	releaseResp, err := http.Get("https://api.github.com/repos/dhens/Emissary-Daemon/releases/latest")
+	releaseResp, err := http.Get("https://api.github.com/repos/imdawon/Emissary-Daemon/releases/latest")
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +594,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	json.Unmarshal(releaseBody, &githubReleaseBody)
 	// Ensure we only allow legit URLs in case the response gets hijacked / modified somehow.
 	// We don't want make a request get whatever arbitrary response url is returned from the GitHub API.
-	if githubReleaseBody.AssetsURL[:60] != "https://api.github.com/repos/dhens/Emissary-Daemon/releases/" {
+	if githubReleaseBody.AssetsURL[:62] != "https://api.github.com/repos/imdawon/Emissary-Daemon/releases/" {
 		return nil, fmt.Errorf("unexpected url returned from github 'releases/latest' endpoint. unable to get Emissary client")
 	}
 
@@ -612,7 +621,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 			break
 		}
 		assetURL := v.Asset
-		if v.Asset[:59] != "https://github.com/dhens/Emissary-Daemon/releases/download/" {
+		if v.Asset[:61] != "https://github.com/imdawon/Emissary-Daemon/releases/download/" {
 			return nil, fmt.Errorf("unexpected url returned from github 'releases/latest' endpoint. unable to get Emissary client")
 		}
 		// Add all macos asset files since we need the zipped Emissary client and the .sig file.
@@ -756,6 +765,7 @@ func (d *Drawbridge) GenerateEmissaryBundle(config EmissaryConfig) (*BundleFile,
 	if err != nil {
 		return nil, err
 	}
+
 	return &bundleFile, nil
 }
 

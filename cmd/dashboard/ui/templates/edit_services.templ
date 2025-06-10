@@ -2,7 +2,7 @@ package templates
 
 import "strconv"
 import "fmt"
-import "dhens/drawbridge/cmd/drawbridge/services"
+import "imdawon/drawbridge/cmd/drawbridge/services"
 
 templ EditService(service *services.ProtectedService) {
     <form hx-patch={ fmt.Sprintf("/service/%d/edit",service.ID) } hx-target="#protected-services-list" hx-swap="innerHTML">
