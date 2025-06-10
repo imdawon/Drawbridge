@@ -1,7 +1,7 @@
 package certificates
 
 import (
-	"dhens/drawbridge/cmd/drawbridge/emissary"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
 	"net"
 	"testing"
 )
@@ -35,19 +35,19 @@ func TestDrawbridgeListeningAddressIsLAN(t *testing.T) {
 func TestHashEmissaryCertificate(t *testing.T) {
 	// Create a simple test certificate
 	cert := []byte{1, 2, 3, 4, 5}
-	
+
 	// Hash should be deterministic for the same input
-	hash1 := hashEmissaryCertificate(cert)
-	hash2 := hashEmissaryCertificate(cert)
-	
+	hash1 := HashEmissaryCertificate(cert)
+	hash2 := HashEmissaryCertificate(cert)
+
 	if hash1 != hash2 {
 		t.Errorf("hash not deterministic: %s != %s", hash1, hash2)
 	}
-	
+
 	// Different certificates should produce different hashes
 	differentCert := []byte{5, 4, 3, 2, 1}
-	hash3 := hashEmissaryCertificate(differentCert)
-	
+	hash3 := HashEmissaryCertificate(differentCert)
+
 	if hash1 == hash3 {
 		t.Errorf("different certificates produced the same hash: %s", hash1)
 	}
@@ -56,33 +56,33 @@ func TestHashEmissaryCertificate(t *testing.T) {
 // TestCertificateRevocation tests the certificate revocation functionality
 func TestCertificateRevocation(t *testing.T) {
 	ca := &CA{
-		CertificateList: make(map[string]emissary.DeviceCertificate),
+		EmissaryDeviceCertificatesWhitelist: make(map[string]emissary.DeviceCertificate),
 	}
-	
+
 	// Add a test certificate
 	testCertHash := "testhash123"
-	ca.CertificateList[testCertHash] = emissary.DeviceCertificate{
+	ca.EmissaryDeviceCertificatesWhitelist[testCertHash] = emissary.DeviceCertificate{
 		DeviceID: "test-device",
 		Revoked:  0,
 	}
-	
+
 	// Test revocation
 	ca.RevokeCertInCertificateRevocationList(testCertHash)
-	if ca.CertificateList[testCertHash].Revoked != 1 {
+	if ca.EmissaryDeviceCertificatesWhitelist[testCertHash].Revoked != 1 {
 		t.Errorf("certificate not properly revoked")
 	}
-	
+
 	// Test unrevocation
 	ca.UnRevokeCertInCertificateRevocationList(testCertHash)
-	if ca.CertificateList[testCertHash].Revoked != 0 {
+	if ca.EmissaryDeviceCertificatesWhitelist[testCertHash].Revoked != 0 {
 		t.Errorf("certificate not properly unrevoked")
 	}
-	
+
 	// Test revocation of non-existent certificate
 	nonExistentHash := "nonexistent"
 	ca.RevokeCertInCertificateRevocationList(nonExistentHash)
 	// Should not panic or add the certificate
-	if _, exists := ca.CertificateList[nonExistentHash]; exists {
+	if _, exists := ca.EmissaryDeviceCertificatesWhitelist[nonExistentHash]; exists {
 		t.Errorf("non-existent certificate was added to the list")
 	}
 }
@@ -90,43 +90,43 @@ func TestCertificateRevocation(t *testing.T) {
 // TestVerifyEmissaryCertificate tests the certificate verification function
 func TestVerifyEmissaryCertificate(t *testing.T) {
 	ca := &CA{
-		CertificateList: make(map[string]emissary.DeviceCertificate),
+		EmissaryDeviceCertificatesWhitelist: make(map[string]emissary.DeviceCertificate),
 	}
-	
+
 	// Add a valid certificate
 	validCert := []byte{1, 2, 3, 4, 5}
-	validHash := hashEmissaryCertificate(validCert)
-	ca.CertificateList[validHash] = emissary.DeviceCertificate{
+	validHash := HashEmissaryCertificate(validCert)
+	ca.EmissaryDeviceCertificatesWhitelist[validHash] = emissary.DeviceCertificate{
 		DeviceID: "valid-device",
 		Revoked:  0,
 	}
-	
+
 	// Add a revoked certificate
 	revokedCert := []byte{6, 7, 8, 9, 10}
-	revokedHash := hashEmissaryCertificate(revokedCert)
-	ca.CertificateList[revokedHash] = emissary.DeviceCertificate{
+	revokedHash := HashEmissaryCertificate(revokedCert)
+	ca.EmissaryDeviceCertificatesWhitelist[revokedHash] = emissary.DeviceCertificate{
 		DeviceID: "revoked-device",
 		Revoked:  1,
 	}
-	
+
 	// Test with empty certificate list
 	err := ca.verifyEmissaryCertificate([][]byte{}, nil)
 	if err == nil {
 		t.Errorf("empty certificate list should return an error")
 	}
-	
+
 	// Test with valid certificate
 	err = ca.verifyEmissaryCertificate([][]byte{validCert}, nil)
 	if err != nil {
 		t.Errorf("valid certificate verification failed: %v", err)
 	}
-	
+
 	// Test with revoked certificate
 	err = ca.verifyEmissaryCertificate([][]byte{revokedCert}, nil)
 	if err == nil {
 		t.Errorf("revoked certificate verification should fail")
 	}
-	
+
 	// Test with unknown certificate
 	unknownCert := []byte{11, 12, 13, 14, 15}
 	err = ca.verifyEmissaryCertificate([][]byte{unknownCert}, nil)

@@ -1,9 +1,9 @@
 package persistence
 
 import (
-	"dhens/drawbridge/cmd/drawbridge/emissary"
-	"dhens/drawbridge/cmd/utils"
 	"fmt"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
+	"imdawon/drawbridge/cmd/utils"
 )
 
 func (r *SQLiteRepository) MigrateEmissaryClientEvent() error {

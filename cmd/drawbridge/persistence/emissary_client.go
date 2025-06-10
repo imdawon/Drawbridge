@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"dhens/drawbridge/cmd/drawbridge/emissary"
 	"encoding/hex"
 	"fmt"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
 )
 
 func (r *SQLiteRepository) MigrateEmissaryClient() error {
