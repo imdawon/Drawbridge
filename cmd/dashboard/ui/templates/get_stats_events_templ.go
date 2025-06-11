@@ -11,7 +11,7 @@ import "io"
 import "bytes"
 
 import (
-	"dhens/drawbridge/cmd/drawbridge/emissary"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
 )
 
 func GetStatsEvents(events []emissary.Event) templ.Component {
