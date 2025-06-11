@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"dhens/drawbridge/cmd/dashboard/ui/templates"
-	"dhens/drawbridge/cmd/drawbridge/emissary"
+	"imdawon/drawbridge/cmd/dashboard/ui/templates"
+	"imdawon/drawbridge/cmd/drawbridge/emissary"
 	"log/slog"
 	"net/http"
 )
@@ -29,11 +29,11 @@ func (f *Controller) handleStatsClients(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		slog.Error("error getting client statistics", slog.Any("error", err))
 	}
-	
+
 	totalClients := len(clients)
 	activeClients := 0
 	revokedClients := 0
-	
+
 	for _, client := range clients {
 		if client.Revoked == 0 {
 			activeClients++
@@ -41,7 +41,7 @@ func (f *Controller) handleStatsClients(w http.ResponseWriter, r *http.Request) 
 			revokedClients++
 		}
 	}
-	
+
 	templates.GetStatsClients(totalClients, activeClients, revokedClients).Render(r.Context(), w)
 }
 
@@ -51,18 +51,18 @@ func (f *Controller) handleStatsServices(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		slog.Error("error getting service statistics", slog.Any("error", err))
 	}
-	
+
 	totalServices := len(services)
 	topService := "None"
 	topServiceConnections := 0
-	
+
 	if totalServices > 0 {
 		// In a full implementation we would count actual connections
 		// For now just use the first service
 		topService = services[0].Name
 		topServiceConnections = 0
 	}
-	
+
 	templates.GetStatsServices(services, totalServices, topService, topServiceConnections).Render(r.Context(), w)
 }
 
@@ -71,14 +71,14 @@ func (f *Controller) handleStatsConnections(w http.ResponseWriter, r *http.Reque
 	// In a full implementation we would count connections from the database
 	totalConnections := 0
 	todayConnections := 0
-	
+
 	// Example connection types - would be from database in full implementation
 	connectionTypes := []templates.ConnectionStat{
 		{Name: "HTTP", Count: 15},
 		{Name: "SSH", Count: 8},
 		{Name: "TCP", Count: 12},
 	}
-	
+
 	templates.GetStatsConnections(totalConnections, todayConnections, connectionTypes).Render(r.Context(), w)
 }
 
@@ -89,16 +89,16 @@ func (f *Controller) handleStatsEvents(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("error getting client events", slog.Any("error", err))
 	}
-	
+
 	events := make([]emissary.Event, 0)
-	
+
 	// Only try to get events if we have clients
 	if len(clients) > 0 {
 		var deviceIDs []any
 		for _, client := range clients {
 			deviceIDs = append(deviceIDs, client.ID)
 		}
-		
+
 		latestClientEvents, err := f.DB.GetLatestEventForEachDeviceId(deviceIDs)
 		if err != nil {
 			slog.Error("error getting latest client events", slog.Any("error", err))
@@ -109,6 +109,6 @@ func (f *Controller) handleStatsEvents(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	templates.GetStatsEvents(events).Render(r.Context(), w)
 }
